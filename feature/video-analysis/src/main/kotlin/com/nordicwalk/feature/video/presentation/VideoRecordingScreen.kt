@@ -18,19 +18,22 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.nordicwalk.feature.video.util.hasRequiredPermissions
+import com.nordicwalk.feature.video.util.rememberPermissionState
 import kotlinx.coroutines.delay
 
 @Composable
@@ -38,6 +41,7 @@ fun VideoRecordingScreen(
     onVideoRecorded: (videoPath: String) -> Unit,
     viewModel: VideoRecordingViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val isRecording by viewModel.isRecording.collectAsState()
     val recordingDuration by viewModel.recordingDuration.collectAsState()
     val recordedVideoPath by viewModel.recordedVideoPath.collectAsState()
@@ -45,6 +49,24 @@ fun VideoRecordingScreen(
     val statusMessage by viewModel.statusMessage.collectAsState()
     
     var displayDuration by remember { mutableStateOf(0L) }
+    var showPermissionDenied by remember { mutableStateOf(false) }
+    
+    // 權限狀態
+    val permissionState = rememberPermissionState(
+        onPermissionsGranted = {
+            showPermissionDenied = false
+        },
+        onPermissionsDenied = {
+            showPermissionDenied = true
+        }
+    )
+    
+    // 檢查權限
+    LaunchedEffect(Unit) {
+        if (!context.hasRequiredPermissions()) {
+            permissionState.requestPermissions()
+        }
+    }
     
     // 更新時間顯示
     LaunchedEffect(recordingDuration, isRecording) {
@@ -78,27 +100,75 @@ fun VideoRecordingScreen(
             color = MaterialTheme.colorScheme.primary
         )
         
-        // 預留攝像頭預覽區域
+        // 攟像頭預覽區域
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(300.dp)
-                .background(Color.DarkGray)
-                .padding(10.dp),
+                .weight(1f)
+                .padding(vertical = 10.dp),
             contentAlignment = Alignment.Center
         ) {
-            if (isRecording) {
-                Text(
-                    text = "📹 正在錄製中...",
-                    color = Color.White,
-                    fontSize = 18.sp
-                )
-            } else {
-                Text(
-                    text = "📷 攝像頭預覽\n(需要設定相機權限)",
-                    color = Color.LightGray,
-                    fontSize = 16.sp
-                )
+            when {
+                !context.hasRequiredPermissions() -> {
+                    // 權限未授予
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            text = "⚠️ 需要相機和麥克風權限",
+                            color = MaterialTheme.colorScheme.error,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Button(onClick = { permissionState.requestPermissions() }) {
+                            Text("授予權限")
+                        }
+                        if (showPermissionDenied) {
+                            Text(
+                                text = "請在系統設定中手動開啟權限",
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
+                else -> {
+                    // 顯示相機預覽
+                    CameraPreview(
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    
+                    // 錄製指示器
+                    if (isRecording) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.TopEnd
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .background(
+                                            color = Color.Red,
+                                            shape = androidx.compose.foundation.shape.CircleShape
+                                        )
+                                )
+                                Text(
+                                    text = "REC",
+                                    color = Color.Red,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
         
@@ -175,6 +245,7 @@ fun VideoRecordingScreen(
                     onClick = {
                         viewModel.startRecording()
                     },
+                    enabled = context.hasRequiredPermissions(),
                     modifier = Modifier
                         .weight(1f)
                         .height(50.dp)
