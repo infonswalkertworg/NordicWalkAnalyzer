@@ -13,8 +13,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.nordicwalk.feature.student.presentation.StudentRoutes
 import com.nordicwalk.feature.student.presentation.studentGraph
+import com.nordicwalk.feature.video.presentation.videoAnalysisGraph
 
 object StudentRoute {
     const val LIST = "student_list"
@@ -46,20 +46,29 @@ fun NordicWalkNavigation() {
         studentGraph(
             navController = navController,
             onNavigateToAnalysis = { studentId ->
-                navController.navigate("${AnalysisRoute.CAMERA.replace("{studentId}", studentId.toString())}")
+                // Navigate to video recording
+                navController.navigate("video_recording")
             }
         )
 
-        // Analysis Routes (placeholders for now)
+        // Video Analysis Feature
+        videoAnalysisGraph(
+            navController = navController,
+            onBackClick = {
+                navController.navigateUp()
+            }
+        )
+
+        // Legacy Analysis Routes (placeholders for now)
         composable(AnalysisRoute.HOME) {
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Analysis Home (Coming Soon)")
+                    Text("分析主頁 (Coming Soon)")
                     Button(onClick = { navController.navigateUp() }) {
-                        Text("Back")
+                        Text("返回")
                     }
                 }
             }
@@ -74,9 +83,9 @@ fun NordicWalkNavigation() {
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Camera Analysis (Coming Soon)")
+                    Text("攝像頭分析 (Coming Soon)")
                     Button(onClick = { navController.navigateUp() }) {
-                        Text("Back")
+                        Text("返回")
                     }
                 }
             }
@@ -91,9 +100,9 @@ fun NordicWalkNavigation() {
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Analysis Result (Coming Soon)")
+                    Text("分析結果 (Coming Soon)")
                     Button(onClick = { navController.navigateUp() }) {
-                        Text("Back")
+                        Text("返回")
                     }
                 }
             }
