@@ -21,7 +21,7 @@ include(":app")
 include(":core:data")
 include(":core:domain")
 include(":core:ui")
-// Temporarily disabled feature modules - will be fixed incrementally
-// include(":feature:student-management")
+include(":feature:student-management")
+// Temporarily disabled feature modules
 // include(":feature:video-analysis")
 // include(":feature:analysis")
