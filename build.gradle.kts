@@ -5,14 +5,6 @@ plugins {
     id("com.google.devtools.ksp") version "1.9.10-1.0.13" apply false
 }
 
-subprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven(url = "https://oss.sonatype.org/content/repositories/snapshots/")
-    }
-}
-
-tasks.register("clean") {
+tasks.register("clean", Delete::class) {
     delete(rootProject.buildDir)
 }
