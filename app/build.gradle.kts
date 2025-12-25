@@ -104,12 +104,12 @@ dependencies {
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.5.0")
 
-    // Local modules - only core modules for now
+    // Local modules
     implementation(project(":core:data"))
     implementation(project(":core:domain"))
     implementation(project(":core:ui"))
+    implementation(project(":feature:student-management"))
     // Feature modules disabled temporarily
-    // implementation(project(":feature:student-management"))
     // implementation(project(":feature:video-analysis"))
     // implementation(project(":feature:analysis"))
 
