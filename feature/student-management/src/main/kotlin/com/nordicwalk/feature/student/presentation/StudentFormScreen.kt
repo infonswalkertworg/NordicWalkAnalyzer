@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 
 /**
@@ -179,7 +180,7 @@ fun StudentFormScreen(
                         Text(
                             text = "計算公式: ${student.heightCm} cm × 0.68 = ${String.format("%.1f", student.heightCm * 0.68)} cm",
                             modifier = Modifier.padding(start = 8.dp),
-                            fontSize = androidx.compose.ui.unit.sp(12)
+                            fontSize = 12.sp
                         )
 
                         // 入門建議
