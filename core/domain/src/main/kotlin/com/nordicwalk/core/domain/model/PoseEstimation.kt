@@ -1,6 +1,6 @@
 package com.nordicwalk.core.domain.model
 
-import java.time.LocalDateTime
+import kotlinx.datetime.Instant
 
 /**
  * Represents a single landmark (joint) detected in pose estimation
@@ -20,7 +20,7 @@ data class PoseLandmark(
  */
 data class PoseFrame(
     val id: Long,
-    val timestamp: LocalDateTime,
+    val timestamp: Long,  // Unix timestamp in milliseconds
     val landmarks: List<PoseLandmark>,
     val frameIndex: Int = 0,
     val width: Int = 0,
@@ -52,7 +52,7 @@ enum class CaptureSource {
  */
 data class PoseMetrics(
     val frameId: Long,
-    val timestamp: LocalDateTime,
+    val timestamp: Long,  // Unix timestamp in milliseconds
     // Body angles (in degrees)
     val trunkTilt: Float = 0f,              // Forward/backward lean
     val neckAngle: Float = 0f,              // Neck flexion
@@ -91,8 +91,8 @@ data class AnalysisSession(
     val studentId: Long,
     val direction: ViewDirection,
     val captureSource: CaptureSource,
-    val startTime: LocalDateTime,
-    val endTime: LocalDateTime? = null,
+    val startTime: Long,  // Unix timestamp
+    val endTime: Long? = null,
     val frames: List<PoseFrame> = emptyList(),
     val metrics: List<PoseMetrics> = emptyList(),
     val violations: List<PostureViolation> = emptyList()
@@ -109,11 +109,11 @@ data class PostureViolation(
     val severity: ViolationSeverity,
     val description: String,
     val suggestion: String,
-    val timestamp: LocalDateTime
+    val timestamp: Long  // Unix timestamp
 )
 
 /**
-enum for violation types
+ * Enum for violation types
  */
 enum class ViolationType {
     EXCESSIVE_TRUNK_TILT,
