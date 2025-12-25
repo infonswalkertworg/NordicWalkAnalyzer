@@ -25,7 +25,7 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.8"  // Compatible with Kotlin 1.9.22
+        kotlinCompilerExtensionVersion = "1.5.8"
     }
 
     buildTypes {
@@ -84,7 +84,7 @@ dependencies {
     implementation("androidx.media3:media3-common:1.2.1")
 
     // MediaPipe
-    implementation("com.google.mediapipe:tasks-vision:0.20230731")
+    implementation("com.google.mediapipe:tasks-vision:0.10.14")
 
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
@@ -109,9 +109,7 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:ui"))
     implementation(project(":feature:student-management"))
-    // Feature modules disabled temporarily
-    // implementation(project(":feature:video-analysis"))
-    // implementation(project(":feature:analysis"))
+    implementation(project(":feature:video-analysis"))
 
     // Testing
     testImplementation("junit:junit:4.13.2")
