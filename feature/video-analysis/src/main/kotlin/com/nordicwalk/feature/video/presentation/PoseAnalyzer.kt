@@ -3,25 +3,25 @@ package com.nordicwalk.feature.video.presentation
 import android.content.Context
 import android.graphics.Bitmap
 import android.util.Log
-import com.google.mediapipe.framework.image.MPImage
+import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarker
 import com.google.mediapipe.tasks.vision.poselandmarker.PoseLandmarkerResult
 import com.nordicwalk.feature.video.domain.model.Landmark
 import com.nordicwalk.feature.video.domain.model.PoseAnalysisResult
 import com.nordicwalk.feature.video.domain.model.PostureIssue
-import com.nordicwalk.feature.video.domain.model.AnalysisSummary
+import kotlin.math.abs
 
 /**
  * 姿勢分析器
- * 使用 MediaPipe 進行險可樐棄
+ * 使用 MediaPipe 進行姿勢檢測
  */
 class PoseAnalyzer(private val context: Context) {
     private var poseLandmarker: PoseLandmarker? = null
     
     companion object {
         private const val TAG = "PoseAnalyzer"
-        private const val MODEL_NAME = "pose_landmarker.task"
+        private const val MODEL_NAME = "pose_landmarker_lite.task"
     }
 
     init {
@@ -40,7 +40,7 @@ class PoseAnalyzer(private val context: Context) {
             val options = PoseLandmarker.PoseLandmarkerOptions.builder()
                 .setBaseOptions(baseOptions)
                 .setRunningMode(com.google.mediapipe.tasks.vision.core.RunningMode.IMAGE)
-                .setNumPoses(1)  // 只棄測一少人
+                .setNumPoses(1)
                 .setMinPoseDetectionConfidence(0.5f)
                 .setMinPosePresenceConfidence(0.5f)
                 .setMinTrackingConfidence(0.5f)
@@ -54,7 +54,7 @@ class PoseAnalyzer(private val context: Context) {
     }
 
     /**
-     * 檢測紀的姿勢
+     * 檢測姿勢
      */
     fun analyzePose(
         bitmap: Bitmap,
@@ -63,15 +63,15 @@ class PoseAnalyzer(private val context: Context) {
     ): PoseAnalysisResult {
         return try {
             if (poseLandmarker == null) {
-                Log.w(TAG, "PoseLandmarker 未嬉後")
+                Log.w(TAG, "PoseLandmarker 未初始化")
                 return PoseAnalysisResult.empty(trainingRecordId)
             }
 
-            // 轉換輸出紀影元
-            val mpImage = MPImage.create(bitmap)
+            // 轉換 Bitmap 為 MediaPipe Image
+            val mpImage = BitmapImageBuilder(bitmap).build()
             val result = poseLandmarker?.detect(mpImage) ?: return PoseAnalysisResult.empty(trainingRecordId)
 
-            // 推抽關節點
+            // 提取關節點
             val landmarks = extractLandmarks(result, bitmap.width, bitmap.height)
             
             // 計算姿勢評估分數
@@ -102,7 +102,7 @@ class PoseAnalyzer(private val context: Context) {
     }
 
     /**
-     * 推抽關節點
+     * 提取關節點
      */
     private fun extractLandmarks(
         result: PoseLandmarkerResult,
@@ -118,7 +118,7 @@ class PoseAnalyzer(private val context: Context) {
                 x = landmark.x(),
                 y = landmark.y(),
                 z = landmark.z(),
-                visibility = landmark.presence().orElse(1f)
+                visibility = if (landmark.hasVisibility()) landmark.visibility() else 1f
             )
         }
     }
@@ -165,7 +165,6 @@ class PoseAnalyzer(private val context: Context) {
 
     /**
      * 計算姿勢分數 (0-100)
-     * 根據池琇靜正推估
      */
     private fun calculatePostureScore(landmarks: List<Landmark>): Float {
         if (landmarks.isEmpty()) return 0f
@@ -173,19 +172,16 @@ class PoseAnalyzer(private val context: Context) {
         val shoulderLandmarks = landmarks.filter { it.name in listOf("left_shoulder", "right_shoulder") }
         val hipLandmarks = landmarks.filter { it.name in listOf("left_hip", "right_hip") }
         
-        // 棄程上下寶緑弸形清正池琇靜正推估
-        var score = 85f  // 基础分數
+        var score = 85f
         
-        // 檢查肩膼高度
         if (shoulderLandmarks.size == 2) {
-            val heightDiff = Math.abs(shoulderLandmarks[0].y - shoulderLandmarks[1].y)
-            if (heightDiff > 0.1f) score -= 10f  // 肩膀不平衡
+            val heightDiff = abs(shoulderLandmarks[0].y - shoulderLandmarks[1].y)
+            if (heightDiff > 0.1f) score -= 10f
         }
         
-        // 檢查臀部高度
         if (hipLandmarks.size == 2) {
-            val heightDiff = Math.abs(hipLandmarks[0].y - hipLandmarks[1].y)
-            if (heightDiff > 0.1f) score -= 10f  // 臀部不平衡
+            val heightDiff = abs(hipLandmarks[0].y - hipLandmarks[1].y)
+            if (heightDiff > 0.1f) score -= 10f
         }
         
         return score.coerceIn(0f, 100f)
@@ -197,7 +193,6 @@ class PoseAnalyzer(private val context: Context) {
     private fun calculateBalanceScore(landmarks: List<Landmark>): Float {
         if (landmarks.isEmpty()) return 0f
         
-        // 上了彼此相關的關節點
         val leftHip = landmarks.find { it.name == "left_hip" }
         val rightHip = landmarks.find { it.name == "right_hip" }
         val leftAnkle = landmarks.find { it.name == "left_ankle" }
@@ -207,9 +202,8 @@ class PoseAnalyzer(private val context: Context) {
             return 85f
         }
         
-        // 計算後壢實位置不對稱程度
-        val hipDist = Math.abs(leftHip.x - rightHip.x)
-        val ankleDist = Math.abs(leftAnkle.x - rightAnkle.x)
+        val hipDist = abs(leftHip.x - rightHip.x)
+        val ankleDist = abs(leftAnkle.x - rightAnkle.x)
         val balance = if (hipDist > 0) (ankleDist / hipDist) else 1f
         
         var score = 90f
@@ -235,19 +229,16 @@ class PoseAnalyzer(private val context: Context) {
             return 85f
         }
         
-        // 手臂上下撰動範圍
-        val leftSwing = Math.abs(leftElbow.y - leftShoulder.y)
-        val rightSwing = Math.abs(rightElbow.y - rightShoulder.y)
+        val leftSwing = abs(leftElbow.y - leftShoulder.y)
+        val rightSwing = abs(rightElbow.y - rightShoulder.y)
         
         var score = 85f
         
-        // 擺動涵蓋憨兗
         if (leftSwing < 0.1f || rightSwing < 0.1f) {
-            score -= 20f  // 手臂擺動不足
+            score -= 20f
         }
         
-        // 擺動床称潔量不對稱
-        if (Math.abs(leftSwing - rightSwing) > 0.15f) {
+        if (abs(leftSwing - rightSwing) > 0.15f) {
             score -= 15f
         }
         
@@ -286,16 +277,16 @@ class PoseAnalyzer(private val context: Context) {
     private fun generateRecommendations(issues: List<PostureIssue>): List<String> {
         return issues.map { issue ->
             when (issue) {
-                PostureIssue.UNEVEN_SHOULDERS -> "請會肩膀保持水平。收緦核心而簡肩膼"
-                PostureIssue.INSUFFICIENT_ARM_SWING -> "懶臂擺動行措。估益幪天擺高筋胡世"
-                PostureIssue.UNEVEN_HIPS -> "紱部保涁水平。不礦左右搖晃過大"
-                else -> "改善${issue.description}。請不礦紃親俠"
+                PostureIssue.UNEVEN_SHOULDERS -> "請保持肩膀水平，收緊核心放鬆肩膀"
+                PostureIssue.INSUFFICIENT_ARM_SWING -> "增大手臂擺動幅度，從肩膀帶動手臂"
+                PostureIssue.UNEVEN_HIPS -> "保持骸部水平，不要左右搖擺過大"
+                else -> "改善${issue.description}"
             }
         }
     }
 
     /**
-     * 積院 PoseLandmarker
+     * 關閉 PoseLandmarker
      */
     fun close() {
         poseLandmarker?.close()
