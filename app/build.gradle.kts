@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
+    id("com.google.dagger.hilt.android")
 }
 
 android {
@@ -24,7 +25,7 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.10"
+        kotlinCompilerExtensionVersion = "1.5.8"  // Compatible with Kotlin 1.9.22
     }
 
     buildTypes {
@@ -90,8 +91,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
 
     // Hilt Dependency Injection
-    implementation("com.google.dagger:hilt-android:2.48")
-    ksp("com.google.dagger:hilt-compiler:2.48")
+    implementation("com.google.dagger:hilt-android:2.50")
+    ksp("com.google.dagger:hilt-compiler:2.50")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
 
     // Kotlin Datetime
@@ -103,13 +104,14 @@ dependencies {
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.5.0")
 
-    // Local modules
+    // Local modules - only core modules for now
     implementation(project(":core:data"))
     implementation(project(":core:domain"))
     implementation(project(":core:ui"))
-    implementation(project(":feature:student-management"))
-    implementation(project(":feature:video-analysis"))
-    implementation(project(":feature:analysis"))
+    // Feature modules disabled temporarily
+    // implementation(project(":feature:student-management"))
+    // implementation(project(":feature:video-analysis"))
+    // implementation(project(":feature:analysis"))
 
     // Testing
     testImplementation("junit:junit:4.13.2")
