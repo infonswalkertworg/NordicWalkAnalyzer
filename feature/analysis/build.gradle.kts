@@ -2,6 +2,7 @@ plugins {
     id("com.android.library")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
+    id("com.google.dagger.hilt.android")
 }
 
 android {
@@ -18,7 +19,7 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.10"
+        kotlinCompilerExtensionVersion = "1.5.8"  // Compatible with Kotlin 1.9.22
     }
 
     compileOptions {
@@ -70,8 +71,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     
     // Hilt Dependency Injection
-    implementation("com.google.dagger:hilt-android:2.48")
-    ksp("com.google.dagger:hilt-compiler:2.48")
+    implementation("com.google.dagger:hilt-android:2.50")
+    ksp("com.google.dagger:hilt-compiler:2.50")
     implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
     
     // Kotlin Datetime
