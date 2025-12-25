@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.nordicwalk.feature.video.util.RecordingCallback
 import com.nordicwalk.feature.video.util.VideoRecorder
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,14 +15,14 @@ import javax.inject.Inject
 
 @HiltViewModel
 class VideoRecordingViewModel @Inject constructor(
-    private val context: Context
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
     private val videoRecorder = VideoRecorder(context)
     
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
     
-    private val _recordingDuration = MutableStateFlow(0L)  // 毫秒倈位
+    private val _recordingDuration = MutableStateFlow(0L)
     val recordingDuration: StateFlow<Long> = _recordingDuration.asStateFlow()
     
     private val _recordedVideoPath = MutableStateFlow<String?>(null)
