@@ -1,6 +1,7 @@
 package com.nordicwalk.feature.student.presentation
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -18,12 +20,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentFormScreen(
     onNavigateBack: () -> Unit,
@@ -34,8 +38,10 @@ fun StudentFormScreen(
     val error = viewModel.error.collectAsState().value
     val isSaved = viewModel.isSaved.collectAsState().value
 
-    if (isSaved) {
-        onNavigateBack()
+    LaunchedEffect(isSaved) {
+        if (isSaved) {
+            onNavigateBack()
+        }
     }
 
     Scaffold(
@@ -51,12 +57,14 @@ fun StudentFormScreen(
         }
     ) { paddingValues ->
         if (isLoading) {
-            CircularProgressIndicator(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
-                modifier = Modifier.align(Alignment.CenterHorizontally)
-            )
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
         } else {
             Column(
                 modifier = Modifier
