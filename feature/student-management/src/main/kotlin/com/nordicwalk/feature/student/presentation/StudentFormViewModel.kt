@@ -46,10 +46,10 @@ class StudentFormViewModel @Inject constructor(
                 if (loadedStudent != null) {
                     _student.value = loadedStudent
                 } else {
-                    _error.value = "Student not found"
+                    _error.value = "找不到學員"
                 }
             } catch (e: Exception) {
-                _error.value = e.message ?: "Error loading student"
+                _error.value = e.message ?: "載入學員時發生錯誤"
             } finally {
                 _isLoading.value = false
             }
@@ -68,8 +68,8 @@ class StudentFormViewModel @Inject constructor(
         _student.value = _student.value.copy(age = age)
     }
 
-    fun updateLevel(level: String) {
-        _student.value = _student.value.copy(level = level)
+    fun updateHeight(heightCm: Int) {
+        _student.value = _student.value.copy(heightCm = heightCm)
     }
 
     fun updateNotes(notes: String) {
@@ -84,7 +84,7 @@ class StudentFormViewModel @Inject constructor(
                 _isSaved.value = true
                 _error.value = null
             } catch (e: Exception) {
-                _error.value = e.message ?: "Error saving student"
+                _error.value = e.message ?: "儲存學員時發生錯誤"
             } finally {
                 _isLoading.value = false
             }
