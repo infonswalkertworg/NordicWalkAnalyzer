@@ -1,7 +1,6 @@
 package com.nordicwalk.feature.video.presentation
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -9,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.nordicwalk.feature.video.domain.model.AnalysisSummary
 import com.nordicwalk.feature.video.domain.model.PoseAnalysisResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,7 +19,7 @@ import javax.inject.Inject
 @HiltViewModel
 class VideoAnalysisViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val context: Context
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
     private val videoPath: String? = savedStateHandle["videoPath"]
     private val poseAnalyzer = PoseAnalyzer(context)
