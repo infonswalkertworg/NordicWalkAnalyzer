@@ -8,6 +8,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -32,15 +33,16 @@ class StudentListViewModel @Inject constructor(
     fun loadStudents() {
         viewModelScope.launch {
             _isLoading.value = true
-            try {
-                val studentList = studentRepository.getAllStudents()
-                _students.value = studentList
-                _error.value = null
-            } catch (e: Exception) {
-                _error.value = e.message ?: "Error loading students"
-            } finally {
-                _isLoading.value = false
-            }
+            studentRepository.getAllStudents()
+                .catch { e ->
+                    _error.value = e.message ?: "Error loading students"
+                    _isLoading.value = false
+                }
+                .collect { studentList ->
+                    _students.value = studentList
+                    _error.value = null
+                    _isLoading.value = false
+                }
         }
     }
 
@@ -48,7 +50,6 @@ class StudentListViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 studentRepository.deleteStudent(studentId)
-                loadStudents()
             } catch (e: Exception) {
                 _error.value = e.message ?: "Error deleting student"
             }
