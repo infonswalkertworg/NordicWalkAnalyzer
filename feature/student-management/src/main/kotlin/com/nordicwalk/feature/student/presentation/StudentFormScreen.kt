@@ -29,6 +29,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import java.util.Locale
 
 /**
  * 計算北歐式健走杖建議長度
@@ -178,7 +179,7 @@ fun StudentFormScreen(
                         
                         // 計算過程
                         Text(
-                            text = "計算公式: ${student.heightCm} cm × 0.68 = ${String.format("%.1f", student.heightCm * 0.68)} cm",
+                            text = "計算公式: ${student.heightCm} cm × 0.68 = ${String.format(Locale.getDefault(), "%.1f", student.heightCm * 0.68)} cm",
                             modifier = Modifier.padding(start = 8.dp),
                             fontSize = 12.sp
                         )
