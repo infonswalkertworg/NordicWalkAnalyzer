@@ -80,7 +80,7 @@ class StudentFormViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                studentRepository.insertStudent(_student.value)
+                studentRepository.upsertStudent(_student.value)
                 _isSaved.value = true
                 _error.value = null
             } catch (e: Exception) {
