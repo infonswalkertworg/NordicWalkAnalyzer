@@ -8,25 +8,22 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-data class StudentListUiState(
-    val students: List<Student> = emptyList(),
-    val isLoading: Boolean = false,
-    val error: String? = null,
-    val searchQuery: String = ""
-)
 
 @HiltViewModel
 class StudentListViewModel @Inject constructor(
     private val studentRepository: StudentRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(StudentListUiState())
-    val uiState: StateFlow<StudentListUiState> = _uiState.asStateFlow()
+    private val _students = MutableStateFlow<List<Student>>(emptyList())
+    val students: StateFlow<List<Student>> = _students.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
 
     init {
         loadStudents()
@@ -34,77 +31,27 @@ class StudentListViewModel @Inject constructor(
 
     fun loadStudents() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _isLoading.value = true
             try {
-                studentRepository.getAllStudents()
-                    .catch { exception ->
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = exception.message
-                            )
-                        }
-                    }
-                    .collect { students ->
-                        _uiState.update {
-                            it.copy(
-                                students = students,
-                                isLoading = false
-                            )
-                        }
-                    }
+                val studentList = studentRepository.getAllStudents()
+                _students.value = studentList
+                _error.value = null
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        error = e.message
-                    )
-                }
+                _error.value = e.message ?: "Error loading students"
+            } finally {
+                _isLoading.value = false
             }
         }
     }
 
-    fun deleteStudent(student: Student) {
+    fun deleteStudent(studentId: Long) {
         viewModelScope.launch {
             try {
-                studentRepository.deleteStudent(student)
+                studentRepository.deleteStudent(studentId)
                 loadStudents()
             } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(error = e.message)
-                }
+                _error.value = e.message ?: "Error deleting student"
             }
         }
-    }
-
-    fun searchStudents(query: String) {
-        _uiState.update { it.copy(searchQuery = query) }
-        if (query.isBlank()) {
-            loadStudents()
-        } else {
-            viewModelScope.launch {
-                try {
-                    studentRepository.searchStudents(query)
-                        .catch { exception ->
-                            _uiState.update {
-                                it.copy(error = exception.message)
-                            }
-                        }
-                        .collect { students ->
-                            _uiState.update {
-                                it.copy(students = students)
-                            }
-                        }
-                } catch (e: Exception) {
-                    _uiState.update {
-                        it.copy(error = e.message)
-                    }
-                }
-            }
-        }
-    }
-
-    fun clearError() {
-        _uiState.update { it.copy(error = null) }
     }
 }
