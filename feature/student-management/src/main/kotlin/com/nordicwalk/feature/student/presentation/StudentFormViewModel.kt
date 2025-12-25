@@ -5,173 +5,89 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nordicwalk.core.data.repository.StudentRepository
 import com.nordicwalk.core.domain.model.Student
-import com.nordicwalk.core.domain.model.PoleLengthCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class StudentFormUiState(
-    val id: Long = 0L,
-    val name: String = "",
-    val contact: String = "",
-    val avatarUri: String? = null,
-    val heightCm: String = "",
-    val suggestedPoleLength: Int? = null,
-    val beginnerPoleLength: Int? = null,
-    val advancedPoleLength: Int? = null,
-    val isLoading: Boolean = false,
-    val error: String? = null,
-    val isSaved: Boolean = false,
-    val nameError: String? = null,
-    val heightError: String? = null
-)
-
 @HiltViewModel
 class StudentFormViewModel @Inject constructor(
-    private val studentRepository: StudentRepository,
-    savedStateHandle: SavedStateHandle
+    savedStateHandle: SavedStateHandle,
+    private val studentRepository: StudentRepository
 ) : ViewModel() {
 
-    private val studentId: Long = savedStateHandle["studentId"] ?: 0L
+    private val studentId: Long? = savedStateHandle["studentId"]
 
-    private val _uiState = MutableStateFlow(StudentFormUiState())
-    val uiState: StateFlow<StudentFormUiState> = _uiState.asStateFlow()
+    private val _student = MutableStateFlow(Student.empty())
+    val student: StateFlow<Student> = _student.asStateFlow()
+
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
+
+    private val _isSaved = MutableStateFlow(false)
+    val isSaved: StateFlow<Boolean> = _isSaved.asStateFlow()
 
     init {
-        if (studentId > 0) {
+        if (studentId != null && studentId > 0) {
             loadStudent(studentId)
         }
     }
 
     private fun loadStudent(id: Long) {
         viewModelScope.launch {
+            _isLoading.value = true
             try {
-                _uiState.update { it.copy(isLoading = true) }
-                val student = studentRepository.getStudentById(id)
-                if (student != null) {
-                    _uiState.update {
-                        it.copy(
-                            id = student.id,
-                            name = student.name,
-                            contact = student.contact ?: "",
-                            avatarUri = student.avatarUri,
-                            heightCm = student.heightCm.toString(),
-                            suggestedPoleLength = student.poleLengthSuggested,
-                            beginnerPoleLength = student.poleLengthBeginner,
-                            advancedPoleLength = student.poleLengthAdvanced,
-                            isLoading = false
-                        )
-                    }
+                val loadedStudent = studentRepository.getStudentById(id)
+                if (loadedStudent != null) {
+                    _student.value = loadedStudent
                 } else {
-                    _uiState.update { it.copy(isLoading = false, error = "學員不存在") }
+                    _error.value = "Student not found"
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = e.message) }
+                _error.value = e.message ?: "Error loading student"
+            } finally {
+                _isLoading.value = false
             }
         }
     }
 
-    fun updateName(name: String) {
-        _uiState.update {
-            it.copy(
-                name = name,
-                nameError = if (name.isBlank()) "姓名不能為空" else null
-            )
-        }
+    fun updateFirstName(firstName: String) {
+        _student.value = _student.value.copy(firstName = firstName)
     }
 
-    fun updateContact(contact: String) {
-        _uiState.update { it.copy(contact = contact) }
+    fun updateLastName(lastName: String) {
+        _student.value = _student.value.copy(lastName = lastName)
     }
 
-    fun updateHeight(height: String) {
-        _uiState.update {
-            val heightError = if (height.isNotBlank()) {
-                val cm = height.toIntOrNull()
-                when {
-                    cm == null -> "請輸入有效的身高"
-                    cm < 100 || cm > 250 -> "身高應在100-250公分之間"
-                    else -> null
-                }
-            } else {
-                "身高不能為空"
-            }
-
-            val state = it.copy(heightCm = height, heightError = heightError)
-
-            // 自動計算健走杖長度
-            if (heightError == null && height.isNotBlank()) {
-                val cm = height.toIntOrNull() ?: return@update state
-                val (suggested, beginner, advanced) = PoleLengthCalculator.calculatePoleLengths(cm)
-                state.copy(
-                    suggestedPoleLength = suggested,
-                    beginnerPoleLength = beginner,
-                    advancedPoleLength = advanced
-                )
-            } else {
-                state
-            }
-        }
+    fun updateAge(age: Int) {
+        _student.value = _student.value.copy(age = age)
     }
 
-    fun updateAvatarUri(uri: String) {
-        _uiState.update { it.copy(avatarUri = uri) }
+    fun updateLevel(level: String) {
+        _student.value = _student.value.copy(level = level)
+    }
+
+    fun updateNotes(notes: String) {
+        _student.value = _student.value.copy(notes = notes)
     }
 
     fun saveStudent() {
-        val state = _uiState.value
-
-        if (state.name.isBlank()) {
-            _uiState.update { it.copy(nameError = "姓名不能為空") }
-            return
-        }
-
-        val heightCm = state.heightCm.toIntOrNull()
-        if (heightCm == null || heightCm < 100 || heightCm > 250) {
-            _uiState.update { it.copy(heightError = "身高無效") }
-            return
-        }
-
         viewModelScope.launch {
+            _isLoading.value = true
             try {
-                _uiState.update { it.copy(isLoading = true) }
-
-                val (suggested, beginner, advanced) = PoleLengthCalculator.calculatePoleLengths(heightCm)
-
-                val student = Student(
-                    id = state.id,
-                    name = state.name,
-                    contact = state.contact.ifBlank { null },
-                    avatarUri = state.avatarUri,
-                    heightCm = heightCm,
-                    poleLengthSuggested = suggested,
-                    poleLengthBeginner = beginner,
-                    poleLengthAdvanced = advanced
-                )
-
-                if (state.id > 0) {
-                    studentRepository.updateStudent(student)
-                } else {
-                    studentRepository.createStudent(student)
-                }
-
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        isSaved = true
-                    )
-                }
+                studentRepository.insertStudent(_student.value)
+                _isSaved.value = true
+                _error.value = null
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = e.message) }
+                _error.value = e.message ?: "Error saving student"
+            } finally {
+                _isLoading.value = false
             }
         }
-    }
-
-    fun clearError() {
-        _uiState.update { it.copy(error = null) }
     }
 }
