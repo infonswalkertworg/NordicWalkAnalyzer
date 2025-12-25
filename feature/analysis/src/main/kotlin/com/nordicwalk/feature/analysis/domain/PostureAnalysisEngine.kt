@@ -6,20 +6,35 @@ import com.nordicwalk.core.domain.model.PoseMetrics
 import com.nordicwalk.core.domain.model.PostureViolation
 import com.nordicwalk.core.domain.model.ViolationType
 import com.nordicwalk.core.domain.model.ViolationSeverity
-import com.nordicwalk.feature.videoanalysis.pose.MediaPipePoseDetector
-import java.time.LocalDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.abs
+import kotlin.math.sqrt
+import kotlin.math.atan2
 
 /**
  * Comprehensive posture analysis engine for Nordic Walk technique evaluation
  * Analyzes body mechanics from pose detection results
  */
 @Singleton
-class PostureAnalysisEngine @Inject constructor(
-    private val poseDetector: MediaPipePoseDetector?
-) {
+class PostureAnalysisEngine @Inject constructor() {
+
+    companion object {
+        // MediaPipe Pose landmark IDs
+        const val NOSE = 0
+        const val LEFT_SHOULDER = 11
+        const val RIGHT_SHOULDER = 12
+        const val LEFT_ELBOW = 13
+        const val RIGHT_ELBOW = 14
+        const val LEFT_WRIST = 15
+        const val RIGHT_WRIST = 16
+        const val LEFT_HIP = 23
+        const val RIGHT_HIP = 24
+        const val LEFT_KNEE = 25
+        const val RIGHT_KNEE = 26
+        const val LEFT_ANKLE = 27
+        const val RIGHT_ANKLE = 28
+    }
 
     /**
      * Analyze pose frame and calculate metrics
@@ -144,153 +159,116 @@ class PostureAnalysisEngine @Inject constructor(
             )
         }
 
-        // Check stride consistency
-        if (metrics.stepLength < 0.3f) {
-            violations.add(
-                PostureViolation(
-                    id = System.currentTimeMillis() + 4,
-                    sessionId = sessionId,
-                    frameId = frame.id,
-                    violationType = ViolationType.UNEVEN_STRIDE,
-                    severity = ViolationSeverity.INFO,
-                    description = "Short stride length: ${String.format("%.2f", metrics.stepLength)}m",
-                    suggestion = "Increase stride length. Aim for 0.6-1.0m stride length.",
-                    timestamp = metrics.timestamp
-                )
-            )
-        }
-
-        // Check overall posture quality
-        if (metrics.overallConfidence < 0.6f) {
-            violations.add(
-                PostureViolation(
-                    id = System.currentTimeMillis() + 5,
-                    sessionId = sessionId,
-                    frameId = frame.id,
-                    violationType = ViolationType.POOR_POSTURE,
-                    severity = ViolationSeverity.INFO,
-                    description = "Low pose detection confidence: ${String.format("%.1f", metrics.overallConfidence * 100)}%",
-                    suggestion = "Ensure full body is visible in frame. Better lighting may help.",
-                    timestamp = metrics.timestamp
-                )
-            )
-        }
-
         return violations
     }
 
-    /**
-     * Calculate trunk tilt angle (forward lean)
-     */
+    // Helper function to calculate distance between two landmarks
+    private fun calculateDistance(
+        p1: PoseLandmark,
+        p2: PoseLandmark,
+        width: Int,
+        height: Int
+    ): Float {
+        val dx = (p1.x - p2.x) * width
+        val dy = (p1.y - p2.y) * height
+        return sqrt(dx * dx + dy * dy)
+    }
+
+    // Helper function to calculate angle between three points
+    private fun calculateAngle3Points(
+        p1: PoseLandmark,
+        p2: PoseLandmark,
+        p3: PoseLandmark,
+        width: Int,
+        height: Int
+    ): Float {
+        val v1x = (p1.x - p2.x) * width
+        val v1y = (p1.y - p2.y) * height
+        val v2x = (p3.x - p2.x) * width
+        val v2y = (p3.y - p2.y) * height
+
+        val dot = v1x * v2x + v1y * v2y
+        val len1 = sqrt(v1x * v1x + v1y * v1y)
+        val len2 = sqrt(v2x * v2x + v2y * v2y)
+
+        val angle = Math.toDegrees(Math.acos((dot / (len1 * len2)).toDouble())).toFloat()
+        return angle
+    }
+
     private fun calculateTrunkTilt(landmarks: List<PoseLandmark>, frame: PoseFrame): Float {
-        val leftShoulder = landmarks.find { it.id == MediaPipePoseDetector.LEFT_SHOULDER } ?: return 0f
-        val rightShoulder = landmarks.find { it.id == MediaPipePoseDetector.RIGHT_SHOULDER } ?: return 0f
-        val leftHip = landmarks.find { it.id == MediaPipePoseDetector.LEFT_HIP } ?: return 0f
-        val rightHip = landmarks.find { it.id == MediaPipePoseDetector.RIGHT_HIP } ?: return 0f
+        val leftShoulder = landmarks.find { it.id == LEFT_SHOULDER } ?: return 0f
+        val rightShoulder = landmarks.find { it.id == RIGHT_SHOULDER } ?: return 0f
+        val leftHip = landmarks.find { it.id == LEFT_HIP } ?: return 0f
+        val rightHip = landmarks.find { it.id == RIGHT_HIP } ?: return 0f
 
         val shoulderY = (leftShoulder.y + rightShoulder.y) / 2
         val hipY = (leftHip.y + rightHip.y) / 2
         val shoulderX = (leftShoulder.x + rightShoulder.x) / 2
         val hipX = (leftHip.x + rightHip.x) / 2
 
-        // Vertical line is 90 degrees, calculate deviation
         val deltaY = shoulderY - hipY
         val deltaX = shoulderX - hipX
         
-        val angle = Math.toDegrees(Math.atan2(deltaX.toDouble(), deltaY.toDouble())).toFloat()
+        val angle = Math.toDegrees(atan2(deltaX.toDouble(), deltaY.toDouble())).toFloat()
         return angle
     }
 
-    /**
-     * Calculate neck angle
-     */
     private fun calculateNeckAngle(landmarks: List<PoseLandmark>, frame: PoseFrame): Float {
-        // Placeholder implementation
-        return 0f
+        return 0f  // Placeholder
     }
 
-    /**
-     * Calculate shoulder height difference (lateral tilt)
-     */
     private fun calculateShoulderAngle(landmarks: List<PoseLandmark>, frame: PoseFrame): Float {
-        val leftShoulder = landmarks.find { it.id == MediaPipePoseDetector.LEFT_SHOULDER } ?: return 0f
-        val rightShoulder = landmarks.find { it.id == MediaPipePoseDetector.RIGHT_SHOULDER } ?: return 0f
+        val leftShoulder = landmarks.find { it.id == LEFT_SHOULDER } ?: return 0f
+        val rightShoulder = landmarks.find { it.id == RIGHT_SHOULDER } ?: return 0f
         
         return abs(leftShoulder.y - rightShoulder.y) * frame.height
     }
 
-    /**
-     * Calculate arm swing angle
-     */
     private fun calculateArmAngle(
         landmarks: List<PoseLandmark>,
         frame: PoseFrame,
         isLeft: Boolean,
         isForward: Boolean
     ): Float {
-        val shoulderId = if (isLeft) MediaPipePoseDetector.LEFT_SHOULDER else MediaPipePoseDetector.RIGHT_SHOULDER
-        val elbowId = if (isLeft) MediaPipePoseDetector.LEFT_ELBOW else MediaPipePoseDetector.RIGHT_ELBOW
-        val wristId = if (isLeft) MediaPipePoseDetector.LEFT_WRIST else MediaPipePoseDetector.RIGHT_WRIST
+        val shoulderId = if (isLeft) LEFT_SHOULDER else RIGHT_SHOULDER
+        val elbowId = if (isLeft) LEFT_ELBOW else RIGHT_ELBOW
+        val wristId = if (isLeft) LEFT_WRIST else RIGHT_WRIST
 
         val shoulder = landmarks.find { it.id == shoulderId } ?: return 0f
         val elbow = landmarks.find { it.id == elbowId } ?: return 0f
         val wrist = landmarks.find { it.id == wristId } ?: return 0f
 
-        // Calculate angle using poseDetector if available
-        return poseDetector?.calculateAngle(shoulder, elbow, wrist, frame.width, frame.height) ?: 0f
+        return calculateAngle3Points(shoulder, elbow, wrist, frame.width, frame.height)
     }
 
-    /**
-     * Calculate step length
-     */
     private fun calculateStepLength(landmarks: List<PoseLandmark>, frame: PoseFrame): Float {
-        val leftAnkle = landmarks.find { it.id == MediaPipePoseDetector.LEFT_ANKLE } ?: return 0f
-        val rightAnkle = landmarks.find { it.id == MediaPipePoseDetector.RIGHT_ANKLE } ?: return 0f
+        val leftAnkle = landmarks.find { it.id == LEFT_ANKLE } ?: return 0f
+        val rightAnkle = landmarks.find { it.id == RIGHT_ANKLE } ?: return 0f
 
-        val distance = poseDetector?.calculateLandmarkDistance(
-            leftAnkle, rightAnkle, frame.width, frame.height
-        ) ?: return 0f
-
-        // Assume frame height is roughly 1.8m, scale accordingly
+        val distance = calculateDistance(leftAnkle, rightAnkle, frame.width, frame.height)
         return (distance / frame.height) * 1.8f
     }
 
-    /**
-     * Calculate stride length (distance between same foot contacts)
-     */
     private fun calculateStrideLength(landmarks: List<PoseLandmark>, frame: PoseFrame): Float {
-        // Placeholder - would track foot position over time
-        return 0f
+        return 0f  // Placeholder
     }
 
-    /**
-     * Calculate step width (lateral distance between feet)
-     */
     private fun calculateStepWidth(landmarks: List<PoseLandmark>, frame: PoseFrame): Float {
-        val leftAnkle = landmarks.find { it.id == MediaPipePoseDetector.LEFT_ANKLE } ?: return 0f
-        val rightAnkle = landmarks.find { it.id == MediaPipePoseDetector.RIGHT_ANKLE } ?: return 0f
+        val leftAnkle = landmarks.find { it.id == LEFT_ANKLE } ?: return 0f
+        val rightAnkle = landmarks.find { it.id == RIGHT_ANKLE } ?: return 0f
 
         val lateralDistance = abs(leftAnkle.x - rightAnkle.x) * frame.width
-        
-        // Assume frame width is roughly 0.6m at ankle level
         return (lateralDistance / frame.width) * 0.6f
     }
 
-    /**
-     * Calculate center of mass height
-     */
     private fun calculateCOMHeight(landmarks: List<PoseLandmark>, frame: PoseFrame): Float {
-        // COM is approximately at 55% of body height above ground
-        val nose = landmarks.find { it.id == MediaPipePoseDetector.NOSE } ?: return 0f
-        val leftAnkle = landmarks.find { it.id == MediaPipePoseDetector.LEFT_ANKLE } ?: return 0f
+        val nose = landmarks.find { it.id == NOSE } ?: return 0f
+        val leftAnkle = landmarks.find { it.id == LEFT_ANKLE } ?: return 0f
 
         val bodyHeight = abs(nose.y - leftAnkle.y) * frame.height
         return bodyHeight * 0.55f
     }
 
-    /**
-     * Calculate center of mass displacement (vertical bobbing)
-     */
     private fun calculateCOMDisplacement(
         currentLandmarks: List<PoseLandmark>,
         previousFrame: PoseFrame?,
@@ -304,40 +282,32 @@ class PostureAnalysisEngine @Inject constructor(
         return abs(currentCOM - previousCOM)
     }
 
-    /**
-     * Detect if hand is open (wrist landmarks spread)
-     */
     private fun isHandOpen(landmarks: List<PoseLandmark>, isLeft: Boolean): Boolean {
-        val wristId = if (isLeft) MediaPipePoseDetector.LEFT_WRIST else MediaPipePoseDetector.RIGHT_WRIST
-        val indexId = if (isLeft) 19 else 20  // Index finger landmark
+        val wristId = if (isLeft) LEFT_WRIST else RIGHT_WRIST
+        val indexId = if (isLeft) 19 else 20
 
         val wrist = landmarks.find { it.id == wristId } ?: return false
         val index = landmarks.find { it.id == indexId } ?: return false
 
-        // If index finger is far from wrist, hand is open
         val distance = abs(wrist.x - index.x) + abs(wrist.y - index.y)
         return distance > 0.15f
     }
 
-    /**
-     * Calculate pole angle from vertical
-     */
     private fun calculatePoleAngle(
         landmarks: List<PoseLandmark>,
         frame: PoseFrame,
         isLeft: Boolean
     ): Float {
-        val shoulderId = if (isLeft) MediaPipePoseDetector.LEFT_SHOULDER else MediaPipePoseDetector.RIGHT_SHOULDER
-        val wristId = if (isLeft) MediaPipePoseDetector.LEFT_WRIST else MediaPipePoseDetector.RIGHT_WRIST
+        val shoulderId = if (isLeft) LEFT_SHOULDER else RIGHT_SHOULDER
+        val wristId = if (isLeft) LEFT_WRIST else RIGHT_WRIST
 
         val shoulder = landmarks.find { it.id == shoulderId } ?: return 0f
         val wrist = landmarks.find { it.id == wristId } ?: return 0f
 
-        // Angle from vertical
         val deltaX = wrist.x - shoulder.x
         val deltaY = wrist.y - shoulder.y
 
-        val angle = Math.toDegrees(Math.atan2(deltaX.toDouble(), deltaY.toDouble())).toFloat()
+        val angle = Math.toDegrees(atan2(deltaX.toDouble(), deltaY.toDouble())).toFloat()
         return angle
     }
 }
