@@ -13,6 +13,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.nordicwalk.feature.student.presentation.StudentRoutes
+import com.nordicwalk.feature.student.presentation.studentGraph
 
 object StudentRoute {
     const val LIST = "student_list"
@@ -40,70 +42,15 @@ fun NordicWalkNavigation() {
         navController = navController,
         startDestination = StudentRoute.LIST
     ) {
-        // Student Management Routes
-        composable(StudentRoute.LIST) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Student List (Coming Soon)")
-                    Button(onClick = { navController.navigate(StudentRoute.FORM) }) {
-                        Text("Add Student")
-                    }
-                }
+        // Integrate student management feature
+        studentGraph(
+            navController = navController,
+            onNavigateToAnalysis = { studentId ->
+                navController.navigate("${AnalysisRoute.CAMERA.replace("{studentId}", studentId.toString())}")
             }
-        }
+        )
 
-        composable(StudentRoute.FORM) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Student Form (Coming Soon)")
-                    Button(onClick = { navController.navigateUp() }) {
-                        Text("Back")
-                    }
-                }
-            }
-        }
-
-        composable(
-            StudentRoute.FORM_WITH_ID,
-            arguments = listOf(navArgument("studentId") { type = NavType.LongType })
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Edit Student Form (Coming Soon)")
-                    Button(onClick = { navController.navigateUp() }) {
-                        Text("Back")
-                    }
-                }
-            }
-        }
-
-        composable(
-            StudentRoute.DETAIL,
-            arguments = listOf(navArgument("studentId") { type = NavType.LongType })
-        ) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Student Detail (Coming Soon)")
-                    Button(onClick = { navController.navigateUp() }) {
-                        Text("Back")
-                    }
-                }
-            }
-        }
-
-        // Analysis Routes
+        // Analysis Routes (placeholders for now)
         composable(AnalysisRoute.HOME) {
             Box(
                 modifier = Modifier.fillMaxSize(),
