@@ -1,33 +1,20 @@
 package com.nordicwalk.core.data.db.converter
 
 import androidx.room.TypeConverter
-import kotlinx.datetime.LocalDate
-import kotlinx.datetime.LocalTime
-import kotlinx.datetime.Instant
 
+/**
+ * Room TypeConverter for date/time values
+ * Uses Long timestamps (milliseconds since epoch) for simplicity and compatibility
+ */
 class DateTimeConverters {
+    
     @TypeConverter
-    fun fromTimestampToLocalDate(timestamp: Long): LocalDate? = try {
-        Instant.fromEpochMilliseconds(timestamp).toString().split("T")[0].let {
-            LocalDate.parse(it)
-        }
-    } catch (e: Exception) {
-        null
+    fun fromTimestamp(value: Long?): Long? {
+        return value
     }
 
     @TypeConverter
-    fun localDateToTimestamp(date: LocalDate?): Long? =
-        date?.let { Instant.parse("${it}T00:00:00Z").toEpochMilliseconds() }
-
-    @TypeConverter
-    fun fromLocalTimeString(value: String?): LocalTime? = value?.let {
-        try {
-            LocalTime.parse(it)
-        } catch (e: Exception) {
-            null
-        }
+    fun dateToTimestamp(date: Long?): Long? {
+        return date
     }
-
-    @TypeConverter
-    fun localTimeToString(time: LocalTime?): String? = time?.toString()
 }
