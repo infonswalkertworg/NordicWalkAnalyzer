@@ -100,14 +100,16 @@ dependencies {
     // Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 
-    // Local modules
+    // Coil for image loading
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
+    // Local modules (only include modules that exist)
     implementation(project(":core:data"))
     implementation(project(":core:domain"))
     implementation(project(":core:ui"))
     implementation(project(":feature:student-management"))
     implementation(project(":feature:video-analysis"))
-    implementation(project(":feature:pose-engine"))
-    implementation(project(":feature:reporting"))
+    implementation(project(":feature:analysis"))
 
     // Testing
     testImplementation("junit:junit:4.13.2")
