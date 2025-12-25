@@ -49,14 +49,15 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.2.0")
     implementation("androidx.media3:media3-ui:1.2.0")
     
-    // MediaPipe for pose detection
-    implementation("com.google.mediapipe:mediapipe-tasks-vision:0.20230731")
+    // MediaPipe for pose detection - using correct version
+    implementation("com.google.mediapipe:tasks-vision:0.10.14")
     
     // Camera permissions and camera lifecycle
     implementation("androidx.camera:camera-core:1.3.0")
     implementation("androidx.camera:camera-camera2:1.3.0")
     implementation("androidx.camera:camera-lifecycle:1.3.0")
     implementation("androidx.camera:camera-view:1.3.0")
+    implementation("androidx.camera:camera-video:1.3.0")
     
     // Image processing
     implementation("androidx.compose.material:material-icons-extended:1.6.4")
@@ -66,6 +67,9 @@ dependencies {
     
     // Kotlin Datetime
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.5.0")
+    
+    // Coil for image loading
+    implementation("io.coil-kt:coil-compose:2.5.0")
     
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
