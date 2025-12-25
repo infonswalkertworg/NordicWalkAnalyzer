@@ -11,25 +11,20 @@ class StudentRepositoryImpl(
     private val studentDao: StudentDao
 ) : StudentRepository {
 
-    override suspend fun createStudent(student: Student): Long {
-        val (suggested, beginner, advanced) = PoleLengthCalculator.calculatePoleLengths(student.heightCm)
-        val entity = StudentEntity(
-            name = student.name,
-            contact = student.contact,
-            avatarUri = student.avatarUri,
-            heightCm = student.heightCm,
-            poleLengthSuggested = suggested,
-            poleLengthBeginner = beginner,
-            poleLengthAdvanced = advanced
-        )
-        return studentDao.insert(entity)
-    }
+    override suspend fun upsertStudent(student: Student): Long {
+        val (suggested, beginner, advanced) = if (student.heightCm > 0) {
+            PoleLengthCalculator.calculatePoleLengths(student.heightCm)
+        } else {
+            Triple(student.poleLengthSuggested, student.poleLengthBeginner, student.poleLengthAdvanced)
+        }
 
-    override suspend fun updateStudent(student: Student) {
-        val (suggested, beginner, advanced) = PoleLengthCalculator.calculatePoleLengths(student.heightCm)
         val entity = StudentEntity(
             id = student.id,
-            name = student.name,
+            firstName = student.firstName,
+            lastName = student.lastName,
+            age = student.age,
+            level = student.level,
+            notes = student.notes,
             contact = student.contact,
             avatarUri = student.avatarUri,
             heightCm = student.heightCm,
@@ -39,21 +34,11 @@ class StudentRepositoryImpl(
             createdAt = student.createdAt,
             updatedAt = System.currentTimeMillis()
         )
-        studentDao.update(entity)
+        return studentDao.upsert(entity)
     }
 
-    override suspend fun deleteStudent(student: Student) {
-        val entity = StudentEntity(
-            id = student.id,
-            name = student.name,
-            contact = student.contact,
-            avatarUri = student.avatarUri,
-            heightCm = student.heightCm,
-            poleLengthSuggested = student.poleLengthSuggested,
-            poleLengthBeginner = student.poleLengthBeginner,
-            poleLengthAdvanced = student.poleLengthAdvanced
-        )
-        studentDao.delete(entity)
+    override suspend fun deleteStudent(studentId: Long) {
+        studentDao.deleteById(studentId)
     }
 
     override suspend fun getStudentById(id: Long): Student? {
@@ -78,7 +63,11 @@ class StudentRepositoryImpl(
 
     private fun StudentEntity.toDomainModel(): Student = Student(
         id = id,
-        name = name,
+        firstName = firstName,
+        lastName = lastName,
+        age = age,
+        level = level,
+        notes = notes,
         contact = contact,
         avatarUri = avatarUri,
         heightCm = heightCm,
