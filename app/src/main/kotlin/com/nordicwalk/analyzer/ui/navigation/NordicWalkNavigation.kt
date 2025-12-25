@@ -1,6 +1,13 @@
 package com.nordicwalk.analyzer.ui.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -35,84 +42,114 @@ fun NordicWalkNavigation() {
     ) {
         // Student Management Routes
         composable(StudentRoute.LIST) {
-            StudentListPlaceholder {
-                if (it > 0) {
-                    navController.navigate("${StudentRoute.DETAIL.replace("{studentId}", it.toString())}")
-                } else {
-                    navController.navigate(StudentRoute.FORM)
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Student List (Coming Soon)")
+                    Button(onClick = { navController.navigate(StudentRoute.FORM) }) {
+                        Text("Add Student")
+                    }
                 }
             }
         }
 
         composable(StudentRoute.FORM) {
-            StudentFormPlaceholder(
-                onNavigateBack = { navController.navigateUp() },
-                isEditing = false
-            )
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Student Form (Coming Soon)")
+                    Button(onClick = { navController.navigateUp() }) {
+                        Text("Back")
+                    }
+                }
+            }
         }
 
         composable(
             StudentRoute.FORM_WITH_ID,
             arguments = listOf(navArgument("studentId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val studentId = backStackEntry.arguments?.getLong("studentId") ?: 0L
-            StudentFormPlaceholder(
-                onNavigateBack = { navController.navigateUp() },
-                isEditing = true,
-                studentId = studentId
-            )
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Edit Student Form (Coming Soon)")
+                    Button(onClick = { navController.navigateUp() }) {
+                        Text("Back")
+                    }
+                }
+            }
         }
 
         composable(
             StudentRoute.DETAIL,
             arguments = listOf(navArgument("studentId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val studentId = backStackEntry.arguments?.getLong("studentId") ?: 0L
-            StudentDetailPlaceholder(
-                studentId = studentId,
-                onNavigateBack = { navController.navigateUp() },
-                onNavigateToForm = { navController.navigate("${StudentRoute.FORM_WITH_ID.replace("{studentId}", it.toString())}") },
-                onNavigateToTrainingForm = { recId ->
-                    if (recId > 0) {
-                        navController.navigate("training_form/$studentId/$recId")
-                    } else {
-                        navController.navigate("training_form/$studentId")
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Student Detail (Coming Soon)")
+                    Button(onClick = { navController.navigateUp() }) {
+                        Text("Back")
                     }
-                },
-                onNavigateToAnalysis = { navController.navigate("${AnalysisRoute.CAMERA.replace("{studentId}", studentId.toString())}") }
-            )
+                }
+            }
         }
 
         // Analysis Routes
         composable(AnalysisRoute.HOME) {
-            AnalysisHomePlaceholder(
-                onNavigateBack = { navController.navigateUp() }
-            )
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Analysis Home (Coming Soon)")
+                    Button(onClick = { navController.navigateUp() }) {
+                        Text("Back")
+                    }
+                }
+            }
         }
 
         composable(
             AnalysisRoute.CAMERA,
             arguments = listOf(navArgument("studentId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val studentId = backStackEntry.arguments?.getLong("studentId") ?: 0L
-            CameraAnalysisPlaceholder(
-                studentId = studentId,
-                onNavigateBack = { navController.navigateUp() },
-                onNavigateToResult = { sessionId ->
-                    navController.navigate("${AnalysisRoute.RESULT.replace("{sessionId}", sessionId.toString())}")
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Camera Analysis (Coming Soon)")
+                    Button(onClick = { navController.navigateUp() }) {
+                        Text("Back")
+                    }
                 }
-            )
+            }
         }
 
         composable(
             AnalysisRoute.RESULT,
             arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
-        ) { backStackEntry ->
-            val sessionId = backStackEntry.arguments?.getLong("sessionId") ?: 0L
-            AnalysisResultPlaceholder(
-                sessionId = sessionId,
-                onNavigateBack = { navController.navigateUp() }
-            )
+        ) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Analysis Result (Coming Soon)")
+                    Button(onClick = { navController.navigateUp() }) {
+                        Text("Back")
+                    }
+                }
+            }
         }
     }
 }
