@@ -27,7 +27,7 @@ class VideoAnalysisViewModel @Inject constructor(
     private val _isAnalyzing = MutableStateFlow(false)
     val isAnalyzing: StateFlow<Boolean> = _isAnalyzing.asStateFlow()
     
-    private val _analysisProgress = MutableStateFlow(0f)  // 0-1
+    private val _analysisProgress = MutableStateFlow(0f)
     val analysisProgress: StateFlow<Float> = _analysisProgress.asStateFlow()
     
     private val _currentFrameIndex = MutableStateFlow(0)
@@ -42,7 +42,7 @@ class VideoAnalysisViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
     
-    private val _videoDuration = MutableStateFlow(0L)  // 毫秒合位
+    private val _videoDuration = MutableStateFlow(0L)
     val videoDuration: StateFlow<Long> = _videoDuration.asStateFlow()
     
     private val _statusMessage = MutableStateFlow("")
@@ -56,17 +56,11 @@ class VideoAnalysisViewModel @Inject constructor(
         }
     }
 
-    /**
-     * 載入訓練記錄視频
-     */
     fun loadVideo(path: String) {
         currentVideoPath = path
         loadVideoInfo()
     }
 
-    /**
-     * 載入訓練記錄診悠統計信息
-     */
     private fun loadVideoInfo() {
         viewModelScope.launch(Dispatchers.Default) {
             try {
@@ -81,27 +75,23 @@ class VideoAnalysisViewModel @Inject constructor(
                 _videoDuration.value = durationStr?.toLongOrNull() ?: 0L
                 
                 retriever.release()
-                _statusMessage.value = "訓練記錄已上載：時間${_videoDuration.value / 1000}s"
+                _statusMessage.value = "已載入視頁：時間 ${_videoDuration.value / 1000}s"
             } catch (e: Exception) {
-                _errorMessage.value = "載入訓練記錄失敗: ${e.message}"
+                _errorMessage.value = "載入視頁失敗: ${e.message}"
             }
         }
     }
 
-    /**
-     * 開始分析訓練記錄
-     * 將訒診孺場推抽成幀數根據關節點分析
-     */
     fun analyzeVideo(framesPerSecond: Int = 10) {
         viewModelScope.launch(Dispatchers.Default) {
             if (currentVideoPath == null) {
-                _errorMessage.value = "沒有選擇訓練記錄"
+                _errorMessage.value = "沒有選擇視頁"
                 return@launch
             }
             
             try {
                 _isAnalyzing.value = true
-                _statusMessage.value = "不可變分析中..."
+                _statusMessage.value = "分析中..."
                 _analysisResults.value = emptyList()
                 
                 val retriever = MediaMetadataRetriever()
@@ -111,20 +101,12 @@ class VideoAnalysisViewModel @Inject constructor(
                     MediaMetadataRetriever.METADATA_KEY_DURATION
                 )?.toLongOrNull() ?: 0L
                 
-                val width = retriever.extractMetadata(
-                    MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH
-                )?.toIntOrNull() ?: 1280
-                
-                val height = retriever.extractMetadata(
-                    MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT
-                )?.toIntOrNull() ?: 720
-                
-                val frameInterval = 1000000L / framesPerSecond  // 微秒位
+                val frameInterval = 1000000L / framesPerSecond
                 val results = mutableListOf<PoseAnalysisResult>()
                 
                 var currentTime = 0L
                 var frameIndex = 0
-                val totalFramesToAnalyze = (duration / frameInterval).toInt()
+                val totalFramesToAnalyze = (duration * 1000 / frameInterval).toInt()
                 
                 while (currentTime <= duration * 1000) {
                     val bitmap = retriever.getFrameAtTime(
@@ -136,7 +118,7 @@ class VideoAnalysisViewModel @Inject constructor(
                         val result = poseAnalyzer.analyzePose(
                             bitmap,
                             frameIndex = frameIndex,
-                            trainingRecordId = 0L  // TODO: 正確的訓練記錄 ID
+                            trainingRecordId = 0L
                         )
                         results.add(result)
                         bitmap.recycle()
@@ -154,7 +136,7 @@ class VideoAnalysisViewModel @Inject constructor(
                 _analysisResults.value = results
                 _analysisSummary.value = generateSummary(results)
                 _isAnalyzing.value = false
-                _statusMessage.value = "分析完成！分析了 ${results.size} 幀
+                _statusMessage.value = "分析完成！分析了 ${results.size} 幀"
                 
             } catch (e: Exception) {
                 _isAnalyzing.value = false
@@ -164,9 +146,6 @@ class VideoAnalysisViewModel @Inject constructor(
         }
     }
 
-    /**
-     * 產生訓練記錄分析總結
-     */
     private fun generateSummary(results: List<PoseAnalysisResult>): AnalysisSummary {
         if (results.isEmpty()) {
             return AnalysisSummary(
@@ -183,17 +162,15 @@ class VideoAnalysisViewModel @Inject constructor(
         
         val overallScore = (avgPostureScore + avgBalanceScore + avgArmSwingScore) / 3
         
-        // 敢護遽見了的問題
         val allIssues = results.flatMap { it.issues }
         val issueFrequency = allIssues.groupingBy { it }.eachCount()
         val commonIssues = issueFrequency
-            .filter { it.value > results.size * 0.2f }  // 出現在 20% 以上的紀影
+            .filter { it.value > results.size * 0.2f }
             .keys
             .toList()
         
-        // 集合所有的建議
         val allRecommendations = results.flatMap { it.recommendations }
-        val uniqueRecommendations = allRecommendations.distinct().take(5)  // 最多 5 個建議
+        val uniqueRecommendations = allRecommendations.distinct().take(5)
         
         return AnalysisSummary(
             overallScore = overallScore,
