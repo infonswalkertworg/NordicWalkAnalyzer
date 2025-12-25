@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import com.nordicwalk.core.data.db.entity.StudentEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -17,13 +18,19 @@ interface StudentDao {
     @Update
     suspend fun update(student: StudentEntity)
 
+    @Upsert
+    suspend fun upsert(student: StudentEntity): Long
+
     @Delete
     suspend fun delete(student: StudentEntity)
+
+    @Query("DELETE FROM students WHERE id = :id")
+    suspend fun deleteById(id: Long)
 
     @Query("SELECT * FROM students WHERE id = :id")
     suspend fun getById(id: Long): StudentEntity?
 
-    @Query("SELECT * FROM students ORDER BY name ASC")
+    @Query("SELECT * FROM students ORDER BY firstName ASC, lastName ASC")
     fun getAllStudents(): Flow<List<StudentEntity>>
 
     @Query("SELECT * FROM students ORDER BY updatedAt DESC LIMIT :limit OFFSET :offset")
@@ -32,6 +39,6 @@ interface StudentDao {
     @Query("SELECT COUNT(*) FROM students")
     suspend fun getStudentCount(): Int
 
-    @Query("SELECT * FROM students WHERE name LIKE '%' || :query || '%'")
+    @Query("SELECT * FROM students WHERE firstName LIKE '%' || :query || '%' OR lastName LIKE '%' || :query || '%'")
     fun searchByName(query: String): Flow<List<StudentEntity>>
 }
