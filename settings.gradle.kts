@@ -22,6 +22,6 @@ include(":core:data")
 include(":core:domain")
 include(":core:ui")
 include(":feature:student-management")
+include(":feature:video-analysis")
 // Temporarily disabled feature modules
-// include(":feature:video-analysis")
 // include(":feature:analysis")
