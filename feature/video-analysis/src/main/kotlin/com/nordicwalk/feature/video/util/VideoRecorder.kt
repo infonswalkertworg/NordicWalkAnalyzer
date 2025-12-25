@@ -10,14 +10,12 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * 視频錄製器定佋
+ * 視频錄製器
  */
 class VideoRecorder(private val context: Context) {
     private var mediaRecorder: MediaRecorder? = null
     private var isRecording = false
     private var currentVideoFile: File? = null
-    
-    // 訓練記錄的粗統情報
     private var recordingCallback: RecordingCallback? = null
 
     companion object {
@@ -48,30 +46,18 @@ class VideoRecorder(private val context: Context) {
             }
 
             mediaRecorder?.apply {
-                // 設定音話䯦源
                 setAudioSource(MediaRecorder.AudioSource.MIC)
                 setVideoSource(MediaRecorder.VideoSource.CAMERA)
-                
-                // 設定潔種類（檔案顯示器）
                 setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                
-                // 設定訓達民丧不重複
                 setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
                 setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-                
-                // 設定記錄參數
                 setAudioSamplingRate(44100)
                 setAudioEncodingBitRate(AUDIO_BITRATE)
                 setVideoEncodingBitRate(VIDEO_BITRATE)
                 setVideoFrameRate(VIDEO_FRAME_RATE)
                 setVideoSize(VIDEO_WIDTH, VIDEO_HEIGHT)
-                
-                // 設定記錄方向 (270度縱格機位)
                 setOrientationHint(90)
-                
-                // 設定輸出檔案路徑
                 setOutputFile(currentVideoFile?.absolutePath)
-                
                 prepare()
                 start()
             }
@@ -82,7 +68,7 @@ class VideoRecorder(private val context: Context) {
             true
         } catch (e: Exception) {
             Log.e(TAG, "錄製失敗", e)
-            recordingCallback?.onRecordingError("${錄製失敗: ${e.message}")
+            recordingCallback?.onRecordingError("錄製失敗: ${e.message}")
             mediaRecorder?.release()
             mediaRecorder = null
             false
@@ -90,12 +76,12 @@ class VideoRecorder(private val context: Context) {
     }
 
     /**
-     * 停止錄製：傳回視频檔案路徑
+     * 停止錄製
      */
     fun stopRecording(): String? {
         return try {
             if (!isRecording || mediaRecorder == null) {
-                Log.w(TAG, "未從事錄製")
+                Log.w(TAG, "未進行錄製")
                 return null
             }
 
@@ -107,7 +93,7 @@ class VideoRecorder(private val context: Context) {
             isRecording = false
 
             val videoPath = currentVideoFile?.absolutePath
-            Log.d(TAG, "錄製終束: $videoPath")
+            Log.d(TAG, "錄製結束: $videoPath")
             recordingCallback?.onRecordingStopped(videoPath ?: "")
             videoPath
         } catch (e: Exception) {
@@ -127,13 +113,12 @@ class VideoRecorder(private val context: Context) {
                     try {
                         stop()
                     } catch (e: Exception) {
-                        Log.w(TAG, "停止錄製時的错誤", e)
+                        Log.w(TAG, "停止錄製時的錯誤", e)
                     }
                     release()
                 }
             }
             
-            // 删除檔案
             currentVideoFile?.delete()
             currentVideoFile = null
             mediaRecorder = null
@@ -146,19 +131,10 @@ class VideoRecorder(private val context: Context) {
         }
     }
 
-    /**
-     * 取得是否正在錄製
-     */
     fun getIsRecording(): Boolean = isRecording
 
-    /**
-     * 取得當前訓練記錄檔案
-     */
     fun getCurrentVideoFile(): File? = currentVideoFile
 
-    /**
-     * 建建視频檔案
-     */
     private fun createVideoFile(): File {
         val videosDir = File(context.cacheDir, "videos")
         if (!videosDir.exists()) {
@@ -169,25 +145,19 @@ class VideoRecorder(private val context: Context) {
         return File(videosDir, "NW_$timestamp.mp4")
     }
 
-    /**
-     * 清理所有訓練記錄檔案
-     */
     fun clearAllVideos() {
         try {
             val videosDir = File(context.cacheDir, "videos")
             if (videosDir.exists()) {
                 videosDir.deleteRecursively()
             }
-            Log.d(TAG, "已清除所有訓練記錄")
+            Log.d(TAG, "已清除所有視频")
         } catch (e: Exception) {
             Log.e(TAG, "清理檔案失敗", e)
         }
     }
 }
 
-/**
- * 錄製回調埋口
- */
 interface RecordingCallback {
     fun onRecordingStarted(filePath: String)
     fun onRecordingStopped(filePath: String)
