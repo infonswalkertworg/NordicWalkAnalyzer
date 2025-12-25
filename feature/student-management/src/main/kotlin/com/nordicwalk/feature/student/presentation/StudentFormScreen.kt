@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -24,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 
@@ -47,10 +49,10 @@ fun StudentFormScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Student Form") },
+                title = { Text(if (student.id > 0) "編輯學員" else "新增學員") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Default.ArrowBack, contentDescription = "返回")
                     }
                 }
             )
@@ -75,55 +77,66 @@ fun StudentFormScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 if (error != null) {
-                    Text("Error: $error")
+                    Text("錯誤: $error")
                 }
 
                 TextField(
                     value = student.firstName,
                     onValueChange = { viewModel.updateFirstName(it) },
-                    label = { Text("First Name") },
-                    modifier = Modifier.fillMaxWidth()
+                    label = { Text("名字") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
 
                 TextField(
                     value = student.lastName,
                     onValueChange = { viewModel.updateLastName(it) },
-                    label = { Text("Last Name") },
-                    modifier = Modifier.fillMaxWidth()
+                    label = { Text("姓氏") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
                 )
 
                 TextField(
-                    value = student.age.toString(),
+                    value = if (student.age > 0) student.age.toString() else "",
                     onValueChange = { 
                         val age = it.toIntOrNull() ?: 0
                         viewModel.updateAge(age)
                     },
-                    label = { Text("Age") },
-                    modifier = Modifier.fillMaxWidth()
+                    label = { Text("年齡") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
                 )
 
                 TextField(
-                    value = student.level,
-                    onValueChange = { viewModel.updateLevel(it) },
-                    label = { Text("Level") },
-                    modifier = Modifier.fillMaxWidth()
+                    value = if (student.heightCm > 0) student.heightCm.toString() else "",
+                    onValueChange = { 
+                        val height = it.toIntOrNull() ?: 0
+                        viewModel.updateHeight(height)
+                    },
+                    label = { Text("身高 (公分)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
                 )
 
                 TextField(
                     value = student.notes,
                     onValueChange = { viewModel.updateNotes(it) },
-                    label = { Text("Notes") },
+                    label = { Text("備註") },
                     modifier = Modifier.fillMaxWidth(),
-                    minLines = 3
+                    minLines = 3,
+                    maxLines = 5
                 )
 
                 Button(
                     onClick = { viewModel.saveStudent() },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 16.dp)
+                        .padding(top = 16.dp),
+                    enabled = student.firstName.isNotBlank() && student.lastName.isNotBlank() && student.age > 0
                 ) {
-                    Text("Save")
+                    Text("儲存")
                 }
             }
         }
