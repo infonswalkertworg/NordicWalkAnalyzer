@@ -6,7 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.nordicwalk.analyzer.ui.NordicWalkNavigation
+import com.nordicwalk.analyzer.ui.navigation.NordicWalkNavigation
 import com.nordicwalk.analyzer.ui.theme.NordicWalkTheme
 import dagger.hilt.android.AndroidEntryPoint
 
