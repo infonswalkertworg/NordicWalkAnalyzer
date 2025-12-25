@@ -2,18 +2,37 @@ package com.nordicwalk.core.domain.model
 
 data class Student(
     val id: Long = 0L,
-    val name: String,
+    val firstName: String = "",
+    val lastName: String = "",
+    val age: Int = 0,
+    val level: String = "",
+    val notes: String = "",
     val contact: String? = null,
     val avatarUri: String? = null,
-    val heightCm: Int,
-    val poleLengthSuggested: Int,
-    val poleLengthBeginner: Int,
-    val poleLengthAdvanced: Int,
+    val heightCm: Int = 0,
+    val poleLengthSuggested: Int = 0,
+    val poleLengthBeginner: Int = 0,
+    val poleLengthAdvanced: Int = 0,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 ) {
     val isValid: Boolean
-        get() = name.isNotBlank() && heightCm > 0
+        get() = firstName.isNotBlank() && lastName.isNotBlank() && age > 0
+
+    // For backward compatibility
+    val name: String
+        get() = "$firstName $lastName".trim()
+
+    companion object {
+        fun empty() = Student(
+            id = 0L,
+            firstName = "",
+            lastName = "",
+            age = 0,
+            level = "",
+            notes = ""
+        )
+    }
 }
 
 object PoleLengthCalculator {
