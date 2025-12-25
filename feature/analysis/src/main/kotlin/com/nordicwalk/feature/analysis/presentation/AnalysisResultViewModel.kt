@@ -93,16 +93,13 @@ class AnalysisResultViewModel @Inject constructor(
     }
 
     /**
-     * Calculate session duration in seconds
+     * Calculate session duration in milliseconds
      */
-    private fun calculateDuration(session: AnalysisSession): Int {
+    private fun calculateDuration(session: AnalysisSession): Long {
         return if (session.endTime != null) {
-            java.time.temporal.ChronoUnit.SECONDS.between(
-                session.startTime,
-                session.endTime
-            ).toInt()
+            session.endTime!! - session.startTime
         } else {
-            0
+            0L
         }
     }
 
@@ -135,8 +132,8 @@ class AnalysisResultViewModel @Inject constructor(
         sb.append("  \"direction\": \"${session.direction}\",\n")
         sb.append("  \"frameCount\": ${session.frames.size},\n")
         sb.append("  \"violationCount\": ${session.violations.size},\n")
-        sb.append("  \"startTime\": \"${session.startTime}\",\n")
-        sb.append("  \"endTime\": \"${session.endTime}\"\n")
+        sb.append("  \"startTime\": ${session.startTime},\n")
+        sb.append("  \"endTime\": ${session.endTime}\n")
         sb.append("}")
         return sb.toString()
     }
@@ -160,7 +157,7 @@ class AnalysisResultViewModel @Inject constructor(
         return buildString {
             append("=== Nordic Walk Analysis Report ===\n\n")
             append("Session ID: ${session.id}\n")
-            append("Duration: ${stats.totalDuration} seconds\n")
+            append("Duration: ${stats.totalDuration / 1000} seconds\n")
             append("Total Frames: ${stats.totalFrames}\n\n")
             
             append("=== Metrics ===\n")
@@ -189,7 +186,7 @@ class AnalysisResultViewModel @Inject constructor(
  */
 data class AnalysisStatistics(
     val totalFrames: Int = 0,
-    val totalDuration: Int = 0,
+    val totalDuration: Long = 0L,  // Changed to Long for milliseconds
     val avgTrunkTilt: Float = 0f,
     val avgStepLength: Float = 0f,
     val avgStepWidth: Float = 0f,
