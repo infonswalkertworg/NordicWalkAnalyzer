@@ -4,8 +4,6 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.TypeConverters
-import com.nordicwalk.core.data.db.converter.DateTimeConverters
 import com.nordicwalk.core.data.db.dao.StudentDao
 import com.nordicwalk.core.data.db.dao.TrainingRecordDao
 import com.nordicwalk.core.data.db.dao.AnalysisSessionDao
@@ -22,7 +20,6 @@ import com.nordicwalk.core.data.db.entity.AnalysisSessionEntity
     version = 1,
     exportSchema = false
 )
-@TypeConverters(DateTimeConverters::class)
 abstract class NordicWalkDatabase : RoomDatabase() {
     abstract fun studentDao(): StudentDao
     abstract fun trainingRecordDao(): TrainingRecordDao
