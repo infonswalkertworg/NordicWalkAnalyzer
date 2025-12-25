@@ -22,6 +22,7 @@ object AnalysisRoute {
     const val CAMERA = "analysis_camera/{studentId}"
     const val VIDEO_IMPORT = "analysis_video_import/{studentId}"
     const val PLAYBACK = "analysis_playback/{sessionId}"
+    const val RESULT = "analysis_result/{sessionId}"
 }
 
 @Composable
@@ -78,13 +79,38 @@ fun NordicWalkNavigation() {
                         navController.navigate("training_form/$studentId")
                     }
                 },
-                onNavigateToAnalysis = { navController.navigate("${AnalysisRoute.HOME}") }
+                onNavigateToAnalysis = { navController.navigate("${AnalysisRoute.CAMERA.replace("{studentId}", studentId.toString())}") }
             )
         }
 
-        // Analysis Routes (Placeholders for now)
+        // Analysis Routes
         composable(AnalysisRoute.HOME) {
             AnalysisHomePlaceholder(
+                onNavigateBack = { navController.navigateUp() }
+            )
+        }
+
+        composable(
+            AnalysisRoute.CAMERA,
+            arguments = listOf(navArgument("studentId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val studentId = backStackEntry.arguments?.getLong("studentId") ?: 0L
+            CameraAnalysisPlaceholder(
+                studentId = studentId,
+                onNavigateBack = { navController.navigateUp() },
+                onNavigateToResult = { sessionId ->
+                    navController.navigate("${AnalysisRoute.RESULT.replace("{sessionId}", sessionId.toString())}")
+                }
+            )
+        }
+
+        composable(
+            AnalysisRoute.RESULT,
+            arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val sessionId = backStackEntry.arguments?.getLong("sessionId") ?: 0L
+            AnalysisResultPlaceholder(
+                sessionId = sessionId,
                 onNavigateBack = { navController.navigateUp() }
             )
         }
