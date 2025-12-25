@@ -118,7 +118,7 @@ class PoseAnalyzer(private val context: Context) {
                 x = landmark.x(),
                 y = landmark.y(),
                 z = landmark.z(),
-                visibility = if (landmark.hasVisibility()) landmark.visibility() else 1f
+                visibility = 1f  // 預設可見度為 1.0
             )
         }
     }
