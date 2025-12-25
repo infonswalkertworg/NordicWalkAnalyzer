@@ -12,6 +12,7 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven(url = "https://jitpack.io")
+        maven(url = "https://oss.sonatype.org/content/repositories/snapshots/")
     }
 }
 
@@ -22,5 +23,4 @@ include(":core:domain")
 include(":core:ui")
 include(":feature:student-management")
 include(":feature:video-analysis")
-include(":feature:pose-engine")
-include(":feature:reporting")
+include(":feature:analysis")
