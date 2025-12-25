@@ -29,6 +29,43 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 
+/**
+ * 計算北歐式健走杖建議長度
+ * 公式: 身高(cm) × 0.68
+ * 入門建議值: 計算結果往下取至最近的 5 的倍數
+ * 進階建議值: 計算結果往上進位至最近的 5 的倍數
+ *
+ * 範例: 身高 180cm
+ * 計算: 180 × 0.68 = 122.4cm
+ * 入門建議: 120cm (往下)
+ * 進階建議: 125cm (往上)
+ */
+object PoleLengthCalculator {
+    /**
+     * 根據身高計算入門建議杖長
+     * @param heightCm 身高 (公分)
+     * @return 入門建議杖長 (公分)
+     */
+    fun calculateBeginnerLength(heightCm: Int): Int {
+        if (heightCm <= 0) return 0
+        val baseLine = (heightCm * 0.68).toInt()
+        // 往下取至最近的 5 的倍數
+        return (baseLine / 5) * 5
+    }
+
+    /**
+     * 根據身高計算進階建議杖長
+     * @param heightCm 身高 (公分)
+     * @return 進階建議杖長 (公分)
+     */
+    fun calculateAdvancedLength(heightCm: Int): Int {
+        if (heightCm <= 0) return 0
+        val baseLine = (heightCm * 0.68).toFloat()
+        // 往上進位至最近的 5 的倍數
+        return (((baseLine + 4.99f) / 5).toInt() * 5)
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StudentFormScreen(
@@ -39,6 +76,10 @@ fun StudentFormScreen(
     val isLoading = viewModel.isLoading.collectAsState().value
     val error = viewModel.error.collectAsState().value
     val isSaved = viewModel.isSaved.collectAsState().value
+
+    // 根據身高計算杖長建議
+    val beginnerPoleLength = PoleLengthCalculator.calculateBeginnerLength(student.heightCm)
+    val advancedPoleLength = PoleLengthCalculator.calculateAdvancedLength(student.heightCm)
 
     LaunchedEffect(isSaved) {
         if (isSaved) {
@@ -108,6 +149,7 @@ fun StudentFormScreen(
                     singleLine = true
                 )
 
+                // 身高輸入框
                 TextField(
                     value = if (student.heightCm > 0) student.heightCm.toString() else "",
                     onValueChange = { 
@@ -119,6 +161,40 @@ fun StudentFormScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true
                 )
+
+                // 杖長建議顯示區域
+                if (student.heightCm > 0) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "🎯 北歐式健走杖建議長度",
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                        
+                        // 計算過程
+                        Text(
+                            text = "計算公式: ${student.heightCm} cm × 0.68 = ${String.format("%.1f", student.heightCm * 0.68)} cm",
+                            modifier = Modifier.padding(start = 8.dp),
+                            fontSize = androidx.compose.ui.unit.sp(12)
+                        )
+
+                        // 入門建議
+                        Text(
+                            text = "✓ 入門建議: $beginnerPoleLength cm (往下取整至 5 的倍數)",
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+
+                        // 進階建議
+                        Text(
+                            text = "✓ 進階建議: $advancedPoleLength cm (往上進位至 5 的倍數)",
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                }
 
                 TextField(
                     value = student.notes,
