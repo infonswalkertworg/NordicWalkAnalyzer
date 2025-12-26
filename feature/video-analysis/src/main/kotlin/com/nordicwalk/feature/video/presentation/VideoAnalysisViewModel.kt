@@ -2,6 +2,7 @@ package com.nordicwalk.feature.video.presentation
 
 import android.content.Context
 import android.media.MediaMetadataRetriever
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -21,7 +22,8 @@ class VideoAnalysisViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
-    private val videoPath: String? = savedStateHandle["videoPath"]
+    // 從 SavedStateHandle 獲取編碼的路徑，然後解碼
+    private val videoPath: String? = savedStateHandle.get<String>("encodedVideoPath")?.let { Uri.decode(it) }
     private val poseAnalyzer = PoseAnalyzer(context)
     
     private val _isAnalyzing = MutableStateFlow(false)
@@ -53,6 +55,8 @@ class VideoAnalysisViewModel @Inject constructor(
     init {
         if (!currentVideoPath.isNullOrEmpty()) {
             loadVideoInfo()
+        } else {
+            _errorMessage.value = "未找到視頻路徑"
         }
     }
 
@@ -62,9 +66,14 @@ class VideoAnalysisViewModel @Inject constructor(
     }
 
     private fun loadVideoInfo() {
-        viewModelScope.launch(Dispatchers.Default) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
-                if (currentVideoPath == null) return@launch
+                if (currentVideoPath == null) {
+                    _errorMessage.value = "視頻路徑為空"
+                    return@launch
+                }
+                
+                _statusMessage.value = "正在載入視頻: $currentVideoPath"
                 
                 val retriever = MediaMetadataRetriever()
                 retriever.setDataSource(currentVideoPath)
@@ -75,17 +84,20 @@ class VideoAnalysisViewModel @Inject constructor(
                 _videoDuration.value = durationStr?.toLongOrNull() ?: 0L
                 
                 retriever.release()
-                _statusMessage.value = "已載入視頁：時間 ${_videoDuration.value / 1000}s"
+                _statusMessage.value = "已載入視頻：時間 ${_videoDuration.value / 1000}s"
+                
             } catch (e: Exception) {
-                _errorMessage.value = "載入視頁失敗: ${e.message}"
+                _errorMessage.value = "載入視頻失敗: ${e.message}"
+                _statusMessage.value = "錯誤: ${e.message}"
+                e.printStackTrace()
             }
         }
     }
 
     fun analyzeVideo(framesPerSecond: Int = 10) {
         viewModelScope.launch(Dispatchers.Default) {
-            if (currentVideoPath == null) {
-                _errorMessage.value = "沒有選擇視頁"
+            if (currentVideoPath.isNullOrEmpty()) {
+                _errorMessage.value = "沒有選擇視頻"
                 return@launch
             }
             
@@ -93,6 +105,7 @@ class VideoAnalysisViewModel @Inject constructor(
                 _isAnalyzing.value = true
                 _statusMessage.value = "分析中..."
                 _analysisResults.value = emptyList()
+                _errorMessage.value = null
                 
                 val retriever = MediaMetadataRetriever()
                 retriever.setDataSource(currentVideoPath)
@@ -142,6 +155,7 @@ class VideoAnalysisViewModel @Inject constructor(
                 _isAnalyzing.value = false
                 _errorMessage.value = "分析失敗: ${e.message}"
                 _statusMessage.value = "錯誤: ${e.message}"
+                e.printStackTrace()
             }
         }
     }
