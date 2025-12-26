@@ -21,7 +21,8 @@ object VideoAnalysisDestinations {
  */
 fun NavGraphBuilder.videoAnalysisGraph(
     navController: NavController,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onSaveTrainingRecord: ((videoPath: String, summary: com.nordicwalk.feature.video.domain.model.AnalysisSummary) -> Unit)? = null
 ) {
     // 影片錄製畫面
     composable(VideoAnalysisDestinations.RECORDING_ROUTE) {
@@ -30,8 +31,10 @@ fun NavGraphBuilder.videoAnalysisGraph(
                 // URL 編碼路徑以避免 / 字符問題
                 val encodedPath = Uri.encode(videoPath)
                 // 錄製完成後，導航到分析畫面
-                // 保留 RECORDING_ROUTE 在堆疊中，以便從分析畫面返回時可以再次錄影
-                navController.navigate("video_analysis/$encodedPath")
+                navController.navigate("video_analysis/$encodedPath") {
+                    // 不移除錄影畫面，允許返回再次錄影
+                    launchSingleTop = true
+                }
             }
         )
     }
@@ -53,8 +56,15 @@ fun NavGraphBuilder.videoAnalysisGraph(
         VideoAnalysisScreen(
             videoPath = videoPath,
             onBack = {
-                // 返回到錄影畫面，移除當前分析畫面
-                navController.popBackStack()
+                // 返回時，清除所有分析和錄影畫面，直接回到學員詳情
+                navController.popBackStack(
+                    route = VideoAnalysisDestinations.RECORDING_ROUTE,
+                    inclusive = true  // 也移除錄影畫面
+                )
+            },
+            onAnalysisComplete = { path, summary ->
+                // 分析完成時保存訓練記錄
+                onSaveTrainingRecord?.invoke(path, summary)
             }
         )
     }
