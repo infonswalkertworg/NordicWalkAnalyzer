@@ -16,6 +16,8 @@ class VideoRecorderHelper(private val context: Context) {
     private var recording: Recording? = null
     private var isRecording = false
     private var currentVideoFile: File? = null
+    private var isCancelling = false  // 標記是否正在取消
+    private var currentCallback: RecordingCallback? = null
 
     companion object {
         private const val TAG = "VideoRecorderHelper"
@@ -34,6 +36,8 @@ class VideoRecorderHelper(private val context: Context) {
                 return false
             }
 
+            currentCallback = callback
+            isCancelling = false
             currentVideoFile = createVideoFile()
             Log.d(TAG, "創建視頻檔案: ${currentVideoFile?.absolutePath}")
             
@@ -51,6 +55,15 @@ class VideoRecorderHelper(private val context: Context) {
                         }
                         is VideoRecordEvent.Finalize -> {
                             isRecording = false
+                            
+                            // 如果是取消操作，不處理檔案
+                            if (isCancelling) {
+                                Log.d(TAG, "錄影已取消")
+                                callback.onRecordingCancelled()
+                                isCancelling = false
+                                return@start
+                            }
+                            
                             if (!event.hasError()) {
                                 val path = currentVideoFile?.absolutePath ?: ""
                                 // 確認檔案存在
@@ -92,6 +105,7 @@ class VideoRecorderHelper(private val context: Context) {
                 return null
             }
 
+            isCancelling = false  // 確保不是取消操作
             recording?.stop()
             recording = null
 
@@ -109,16 +123,26 @@ class VideoRecorderHelper(private val context: Context) {
      */
     fun cancelRecording() {
         try {
-            recording?.stop()
+            isCancelling = true  // 設定取消標記
+            
+            recording?.stop()  // 這會觸發 Finalize 事件
             recording = null
             isRecording = false
 
-            currentVideoFile?.delete()
+            // 在 Finalize 事件中會刪除檔案並呼叫 onRecordingCancelled
+            // 但也在這裡確保檔案被刪除
+            currentVideoFile?.let { file ->
+                if (file.exists()) {
+                    file.delete()
+                    Log.d(TAG, "已刪除錄影檔案: ${file.name}")
+                }
+            }
             currentVideoFile = null
 
-            Log.d(TAG, "錄影已取消")
+            Log.d(TAG, "取消錄影已執行")
         } catch (e: Exception) {
             Log.e(TAG, "取消錄影失敗", e)
+            isCancelling = false
         }
     }
 
