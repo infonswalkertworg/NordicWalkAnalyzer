@@ -21,6 +21,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -36,6 +37,7 @@ import androidx.lifecycle.SavedStateHandle
 fun VideoAnalysisScreen(
     videoPath: String?,
     onBack: () -> Unit,
+    onAnalysisComplete: ((videoPath: String, summary: com.nordicwalk.feature.video.domain.model.AnalysisSummary) -> Unit)? = null,
     viewModel: VideoAnalysisViewModel = hiltViewModel()
 ) {
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
@@ -45,6 +47,15 @@ fun VideoAnalysisScreen(
     val errorMessage by viewModel.errorMessage.collectAsState()
     val statusMessage by viewModel.statusMessage.collectAsState()
     val videoDuration by viewModel.videoDuration.collectAsState()
+
+    // 當分析完成時觸發回調
+    LaunchedEffect(analysisSummary) {
+        analysisSummary?.let { summary ->
+            videoPath?.let { path ->
+                onAnalysisComplete?.invoke(path, summary)
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -161,7 +172,7 @@ fun VideoAnalysisScreen(
                             }
                         )
                         Text(
-                            text = "分析笙整: ${summary.totalFramesAnalyzed}",
+                            text = "分析幀數: ${summary.totalFramesAnalyzed}",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                         )
@@ -232,7 +243,7 @@ fun VideoAnalysisScreen(
             )
         }
 
-        // 出了影片
+        // 按鈕區
         if (!videoPath.isNullOrEmpty()) {
             Row(
                 modifier = Modifier
@@ -240,31 +251,43 @@ fun VideoAnalysisScreen(
                     .padding(top = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Button(
-                    onClick = {
-                        viewModel.analyzeVideo(framesPerSecond = 5)
-                    },
-                    enabled = !isAnalyzing,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(45.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "開始分析",
-                        modifier = Modifier.padding(end = 4.dp)
-                    )
-                    Text("開始分析")
-                }
+                // 分析完成後顯示「完成」按鈕，否則顯示「開始分析」
+                if (analysisSummary != null) {
+                    Button(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(45.dp)
+                    ) {
+                        Text("完成")
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            viewModel.analyzeVideo(framesPerSecond = 5)
+                        },
+                        enabled = !isAnalyzing,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(45.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = "開始分析",
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                        Text("開始分析")
+                    }
 
-                Button(
-                    onClick = onBack,
-                    enabled = !isAnalyzing,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(45.dp)
-                ) {
-                    Text("返回")
+                    Button(
+                        onClick = onBack,
+                        enabled = !isAnalyzing,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(45.dp)
+                    ) {
+                        Text("返回")
+                    }
                 }
             }
         }
