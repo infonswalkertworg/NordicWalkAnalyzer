@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,11 +43,14 @@ fun VideoRecordingScreen(
     viewModel: VideoRecordingViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    
     val isRecording by viewModel.isRecording.collectAsState()
     val recordingDuration by viewModel.recordingDuration.collectAsState()
     val recordedVideoPath by viewModel.recordedVideoPath.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val statusMessage by viewModel.statusMessage.collectAsState()
+    val isInitialized by viewModel.isInitialized.collectAsState()
     
     var displayDuration by remember { mutableStateOf(0L) }
     var showPermissionDenied by remember { mutableStateOf(false) }
@@ -55,15 +59,19 @@ fun VideoRecordingScreen(
     val permissionState = rememberPermissionState(
         onPermissionsGranted = {
             showPermissionDenied = false
+            // 權限授予後初始化相機
+            viewModel.initializeCamera(lifecycleOwner)
         },
         onPermissionsDenied = {
             showPermissionDenied = true
         }
     )
     
-    // 檢查權限
+    // 檢查權限並初始化相機
     LaunchedEffect(Unit) {
-        if (!context.hasRequiredPermissions()) {
+        if (context.hasRequiredPermissions()) {
+            viewModel.initializeCamera(lifecycleOwner)
+        } else {
             permissionState.requestPermissions()
         }
     }
@@ -100,7 +108,7 @@ fun VideoRecordingScreen(
             color = MaterialTheme.colorScheme.primary
         )
         
-        // 攟像頭預覽區域
+        // 攝像頭預覽區域
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -131,6 +139,19 @@ fun VideoRecordingScreen(
                                 fontSize = 12.sp
                             )
                         }
+                    }
+                }
+                !isInitialized -> {
+                    // 相機初始化中
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        androidx.compose.material3.CircularProgressIndicator()
+                        Text(
+                            text = "相機初始化中...",
+                            fontSize = 14.sp
+                        )
                     }
                 }
                 else -> {
@@ -245,7 +266,7 @@ fun VideoRecordingScreen(
                     onClick = {
                         viewModel.startRecording()
                     },
-                    enabled = context.hasRequiredPermissions(),
+                    enabled = isInitialized && context.hasRequiredPermissions(),
                     modifier = Modifier
                         .weight(1f)
                         .height(50.dp)
