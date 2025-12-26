@@ -53,21 +53,37 @@ fun VideoRecordingScreen(
     
     var displayDuration by remember { mutableStateOf(0L) }
     var showPermissionDenied by remember { mutableStateOf(false) }
+    // 使用狀態追蹤權限，而不是直接調用函數
+    var hasPermissions by remember { mutableStateOf(context.hasRequiredPermissions()) }
     
     // 權限狀態
     val permissionState = rememberPermissionState(
         onPermissionsGranted = {
             showPermissionDenied = false
+            hasPermissions = true  // 更新權限狀態
         },
         onPermissionsDenied = {
             showPermissionDenied = true
+            hasPermissions = false
         }
     )
     
     // 檢查權限
     LaunchedEffect(Unit) {
-        if (!context.hasRequiredPermissions()) {
+        hasPermissions = context.hasRequiredPermissions()
+        if (!hasPermissions) {
             permissionState.requestPermissions()
+        }
+    }
+    
+    // 定期檢查權限狀態（當用戶從設定返回時）
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1000)  // 每秒檢查一次
+            val currentPermissions = context.hasRequiredPermissions()
+            if (currentPermissions != hasPermissions) {
+                hasPermissions = currentPermissions
+            }
         }
     }
     
@@ -112,7 +128,7 @@ fun VideoRecordingScreen(
             contentAlignment = Alignment.Center
         ) {
             when {
-                !context.hasRequiredPermissions() -> {
+                !hasPermissions -> {
                     // 權限未授予
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -273,7 +289,7 @@ fun VideoRecordingScreen(
                     onClick = {
                         viewModel.startRecording()
                     },
-                    enabled = isCameraReady && context.hasRequiredPermissions(),
+                    enabled = isCameraReady && hasPermissions,
                     modifier = Modifier
                         .weight(1f)
                         .height(50.dp)
