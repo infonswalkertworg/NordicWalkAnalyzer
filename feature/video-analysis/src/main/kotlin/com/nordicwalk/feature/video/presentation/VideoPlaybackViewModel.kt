@@ -8,6 +8,7 @@ import android.os.Environment
 import android.provider.MediaStore
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.nordicwalk.feature.video.util.PoseAnalyzerUtil
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +33,7 @@ data class PosePoint(
 class VideoPlaybackViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
-    private val poseAnalyzer = PoseAnalyzer(context)
+    private val poseAnalyzer = PoseAnalyzerUtil(context)
     private var retriever: MediaMetadataRetriever? = null
     private var videoPath: String? = null
     
