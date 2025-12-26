@@ -49,7 +49,8 @@ class PoseAnalyzerUtil(context: Context) {
                     // 将正一化坐标转换为像素坐标
                     val x = landmark.x() * bitmap.width
                     val y = landmark.y() * bitmap.height
-                    val confidence = landmark.presence()
+                    // Fix: Handle Optional<Float> from presence()
+                    val confidence = landmark.presence().orElse(0f)
                     
                     points.add(
                         PosePoint(
