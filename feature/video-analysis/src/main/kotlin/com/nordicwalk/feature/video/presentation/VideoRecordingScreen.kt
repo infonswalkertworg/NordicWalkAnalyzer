@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FiberManualRecord
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -28,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,14 +43,13 @@ fun VideoRecordingScreen(
     viewModel: VideoRecordingViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
     
     val isRecording by viewModel.isRecording.collectAsState()
     val recordingDuration by viewModel.recordingDuration.collectAsState()
     val recordedVideoPath by viewModel.recordedVideoPath.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
     val statusMessage by viewModel.statusMessage.collectAsState()
-    val isInitialized by viewModel.isInitialized.collectAsState()
+    val isCameraReady by viewModel.isCameraReady.collectAsState()
     
     var displayDuration by remember { mutableStateOf(0L) }
     var showPermissionDenied by remember { mutableStateOf(false) }
@@ -59,19 +58,15 @@ fun VideoRecordingScreen(
     val permissionState = rememberPermissionState(
         onPermissionsGranted = {
             showPermissionDenied = false
-            // 權限授予後初始化相機
-            viewModel.initializeCamera(lifecycleOwner)
         },
         onPermissionsDenied = {
             showPermissionDenied = true
         }
     )
     
-    // 檢查權限並初始化相機
+    // 檢查權限
     LaunchedEffect(Unit) {
-        if (context.hasRequiredPermissions()) {
-            viewModel.initializeCamera(lifecycleOwner)
-        } else {
+        if (!context.hasRequiredPermissions()) {
             permissionState.requestPermissions()
         }
     }
@@ -85,7 +80,7 @@ fun VideoRecordingScreen(
         }
     }
     
-    // 處理錄製完成
+    // 處理錄影完成
     LaunchedEffect(recordedVideoPath) {
         recordedVideoPath?.let {
             onVideoRecorded(it)
@@ -102,13 +97,13 @@ fun VideoRecordingScreen(
     ) {
         // 標題
         Text(
-            text = "影片錄製",
+            text = "影片錄影",
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.primary
         )
         
-        // 攝像頭預覽區域
+        // 相機預覽區域
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -141,26 +136,38 @@ fun VideoRecordingScreen(
                         }
                     }
                 }
-                !isInitialized -> {
-                    // 相機初始化中
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        androidx.compose.material3.CircularProgressIndicator()
-                        Text(
-                            text = "相機初始化中...",
-                            fontSize = 14.sp
-                        )
-                    }
-                }
                 else -> {
                     // 顯示相機預覽
-                    CameraPreview(
-                        modifier = Modifier.fillMaxSize()
+                    CameraPreviewWithRecording(
+                        modifier = Modifier.fillMaxSize(),
+                        onVideoCaptureReady = { videoCapture ->
+                            viewModel.setVideoCapture(videoCapture)
+                        }
                     )
                     
-                    // 錄製指示器
+                    // 相機初始化中
+                    if (!isCameraReady) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.5f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                CircularProgressIndicator(color = Color.White)
+                                Text(
+                                    text = "相機初始化中...",
+                                    color = Color.White,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
+                    
+                    // 錄影指示器
                     if (isRecording) {
                         Box(
                             modifier = Modifier
@@ -193,7 +200,7 @@ fun VideoRecordingScreen(
             }
         }
         
-        // 錄製時間
+        // 錄影時間
         Text(
             text = "時間: ${formatDuration(displayDuration)}",
             fontSize = 20.sp,
@@ -229,7 +236,7 @@ fun VideoRecordingScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (isRecording) {
-                // 停止錄製按鈕
+                // 停止錄影按鈕
                 Button(
                     onClick = {
                         viewModel.stopRecording()
@@ -261,12 +268,12 @@ fun VideoRecordingScreen(
                     Text("取消")
                 }
             } else {
-                // 開始錄製按鈕
+                // 開始錄影按鈕
                 Button(
                     onClick = {
                         viewModel.startRecording()
                     },
-                    enabled = isInitialized && context.hasRequiredPermissions(),
+                    enabled = isCameraReady && context.hasRequiredPermissions(),
                     modifier = Modifier
                         .weight(1f)
                         .height(50.dp)
@@ -278,7 +285,7 @@ fun VideoRecordingScreen(
                         modifier = Modifier.size(20.dp),
                         tint = Color.Red
                     )
-                    Text("開始錄製", modifier = Modifier.padding(start = 8.dp))
+                    Text("開始錄影", modifier = Modifier.padding(start = 8.dp))
                 }
             }
         }
