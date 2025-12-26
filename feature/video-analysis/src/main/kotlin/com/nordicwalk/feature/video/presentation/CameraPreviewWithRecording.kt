@@ -17,7 +17,7 @@ import androidx.core.content.ContextCompat
 import java.util.concurrent.Executor
 
 /**
- * CameraX 預覽組件（包含錄影能力）
+ * CameraX 統一組件 - 同時支持預覽和錄影
  */
 @Composable
 fun CameraPreviewWithRecording(
@@ -35,6 +35,7 @@ fun CameraPreviewWithRecording(
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
             scaleType = PreviewView.ScaleType.FILL_CENTER
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
         }
     }
     
@@ -68,7 +69,7 @@ fun CameraPreviewWithRecording(
                 // 解除之前的綁定
                 cameraProvider.unbindAll()
                 
-                // 同時綁定預覽和錄影到生命週期
+                // 同時綁定預覽和錄影
                 cameraProvider.bindToLifecycle(
                     lifecycleOwner,
                     cameraSelector,
@@ -76,17 +77,21 @@ fun CameraPreviewWithRecording(
                     videoCapture
                 )
                 
-                // 回傳 VideoCapture 給外部使用
+                // 回傳 VideoCapture 實例
                 onVideoCaptureReady(videoCapture)
                 
             } catch (e: Exception) {
-                android.util.Log.e("CameraPreview", "相機初始化失敗", e)
+                android.util.Log.e("CameraPreview", "相機綁定失敗", e)
             }
         }, executor)
         
         onDispose {
-            val cameraProvider = cameraProviderFuture.get()
-            cameraProvider.unbindAll()
+            try {
+                val cameraProvider = cameraProviderFuture.get()
+                cameraProvider.unbindAll()
+            } catch (e: Exception) {
+                android.util.Log.e("CameraPreview", "相機解綁失敗", e)
+            }
         }
     }
     
