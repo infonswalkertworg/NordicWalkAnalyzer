@@ -49,8 +49,12 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:1.2.0")
     implementation("androidx.media3:media3-ui:1.2.0")
     
-    // MediaPipe for pose detection - using correct version
-    implementation("com.google.mediapipe:tasks-vision:0.10.14")
+    // MediaPipe for pose detection - stable version
+    implementation("com.google.mediapipe:tasks-vision:0.10.9")
+    
+    // TensorFlow Lite
+    implementation("org.tensorflow:tensorflow-lite:2.13.0")
+    implementation("org.tensorflow:tensorflow-lite-support:0.4.4")
     
     // Camera permissions and camera lifecycle
     implementation("androidx.camera:camera-core:1.3.0")
