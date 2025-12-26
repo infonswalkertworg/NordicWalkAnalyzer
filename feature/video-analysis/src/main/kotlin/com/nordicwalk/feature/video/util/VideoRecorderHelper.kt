@@ -35,6 +35,8 @@ class VideoRecorderHelper(private val context: Context) {
             }
 
             currentVideoFile = createVideoFile()
+            Log.d(TAG, "創建視頻檔案: ${currentVideoFile?.absolutePath}")
+            
             val fileOutputOptions = FileOutputOptions.Builder(currentVideoFile!!).build()
 
             recording = videoCapture.output
@@ -51,8 +53,15 @@ class VideoRecorderHelper(private val context: Context) {
                             isRecording = false
                             if (!event.hasError()) {
                                 val path = currentVideoFile?.absolutePath ?: ""
-                                Log.d(TAG, "錄影完成: $path")
-                                callback.onRecordingStopped(path)
+                                // 確認檔案存在
+                                val file = File(path)
+                                if (file.exists() && file.length() > 0) {
+                                    Log.d(TAG, "錄影完成: $path (大小: ${file.length()} bytes)")
+                                    callback.onRecordingStopped(path)
+                                } else {
+                                    Log.e(TAG, "檔案不存在或為空: $path")
+                                    callback.onRecordingError("錄影檔案創建失敗")
+                                }
                             } else {
                                 val error = "錄影錯誤: ${event.cause?.message ?: event.error}"
                                 Log.e(TAG, error)
@@ -86,7 +95,9 @@ class VideoRecorderHelper(private val context: Context) {
             recording?.stop()
             recording = null
 
-            currentVideoFile?.absolutePath
+            val path = currentVideoFile?.absolutePath
+            Log.d(TAG, "停止錄影: $path")
+            path
         } catch (e: Exception) {
             Log.e(TAG, "停止錄影失敗", e)
             null
@@ -114,12 +125,16 @@ class VideoRecorderHelper(private val context: Context) {
     fun isRecording(): Boolean = isRecording
 
     private fun createVideoFile(): File {
+        // 使用 app-specific 外部儲存空間，不需要 WRITE_EXTERNAL_STORAGE 權限
         val videosDir = File(context.getExternalFilesDir(null), "videos")
         if (!videosDir.exists()) {
-            videosDir.mkdirs()
+            val created = videosDir.mkdirs()
+            Log.d(TAG, "創建目錄: ${videosDir.absolutePath}, 結果: $created")
         }
 
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-        return File(videosDir, "NW_$timestamp.mp4")
+        val file = File(videosDir, "NW_$timestamp.mp4")
+        Log.d(TAG, "準備創建檔案: ${file.absolutePath}")
+        return file
     }
 }
