@@ -64,6 +64,7 @@ class VideoRecordingViewModel @Inject constructor(
                     override fun onRecordingStarted(filePath: String) {
                         _isRecording.value = true
                         _statusMessage.value = "錄影中..."
+                        _errorMessage.value = null  // 清除錯誤
                         recordingStartTime = System.currentTimeMillis()
                         _recordingDuration.value = 0L
                     }
@@ -72,12 +73,15 @@ class VideoRecordingViewModel @Inject constructor(
                         _isRecording.value = false
                         _recordedVideoPath.value = filePath
                         _statusMessage.value = "錄影完成"
+                        _errorMessage.value = null  // 清除錯誤
                     }
 
                     override fun onRecordingCancelled() {
                         _isRecording.value = false
-                        _statusMessage.value = "錄影已取消"
+                        _statusMessage.value = "已取消錄影"  // 顯示取消訊息
+                        _errorMessage.value = null  // 清除錯誤
                         _recordingDuration.value = 0L
+                        _recordedVideoPath.value = null
                     }
 
                     override fun onRecordingError(errorMessage: String) {
@@ -100,7 +104,8 @@ class VideoRecordingViewModel @Inject constructor(
             val videoPath = recorderHelper.stopRecording()
             if (videoPath != null) {
                 _recordedVideoPath.value = videoPath
-                _statusMessage.value = "錄影已保存: $videoPath"
+                _statusMessage.value = "錄影已保存"
+                _errorMessage.value = null  // 清除錯誤
             } else {
                 _errorMessage.value = "停止錄影失敗"
                 _statusMessage.value = "錯誤: 停止錄影失敗"
@@ -111,8 +116,11 @@ class VideoRecordingViewModel @Inject constructor(
     fun cancelRecording() {
         viewModelScope.launch {
             recorderHelper.cancelRecording()
+            // cancelRecording 會觸發 onRecordingCancelled 回調
+            // 但也在這裡確保狀態正確
             _recordedVideoPath.value = null
             _recordingDuration.value = 0L
+            _errorMessage.value = null  // 清除錯誤
         }
     }
 
