@@ -12,6 +12,8 @@ import androidx.navigation.NavType
  */
 object VideoAnalysisDestinations {
     const val RECORDING_ROUTE = "video_recording"
+    const val PLAYBACK_ROUTE = "video_playback"
+    const val PLAYBACK_ROUTE_WITH_VIDEO = "video_playback/{encodedVideoPath}"
     const val ANALYSIS_ROUTE = "video_analysis"
     const val ANALYSIS_ROUTE_WITH_VIDEO = "video_analysis/{encodedVideoPath}"
 }
@@ -30,10 +32,39 @@ fun NavGraphBuilder.videoAnalysisGraph(
             onVideoRecorded = { videoPath ->
                 // URL 編碼路徑以避免 / 字符問題
                 val encodedPath = Uri.encode(videoPath)
-                // 錄製完成後，導航到分析畫面
-                navController.navigate("video_analysis/$encodedPath") {
-                    // 不移除錄影畫面，允許返回再次錄影
+                // 錄製完成後，先導航到回放畫面
+                navController.navigate("video_playback/$encodedPath") {
                     launchSingleTop = true
+                }
+            }
+        )
+    }
+
+    // 影片回放畫面
+    composable(
+        route = VideoAnalysisDestinations.PLAYBACK_ROUTE_WITH_VIDEO,
+        arguments = listOf(
+            navArgument("encodedVideoPath") {
+                type = NavType.StringType
+                nullable = false
+            }
+        )
+    ) { backStackEntry ->
+        val encodedPath = backStackEntry.arguments?.getString("encodedVideoPath")
+        val videoPath = encodedPath?.let { Uri.decode(it) }
+        
+        VideoPlaybackScreen(
+            videoPath = videoPath,
+            onBack = {
+                // 返回到錄影畫面
+                navController.popBackStack()
+            },
+            onAnalysisStart = {
+                videoPath?.let {
+                    val encodedPath = Uri.encode(it)
+                    navController.navigate("video_analysis/$encodedPath") {
+                        launchSingleTop = true
+                    }
                 }
             }
         )
@@ -85,6 +116,16 @@ fun NavController.navigateToVideoRecording() {
 fun NavController.navigateToVideoAnalysis(videoPath: String) {
     val encodedPath = Uri.encode(videoPath)
     this.navigate("video_analysis/$encodedPath") {
+        launchSingleTop = true
+    }
+}
+
+/**
+ * 從主畫面導航到影片回放畫面
+ */
+fun NavController.navigateToVideoPlayback(videoPath: String) {
+    val encodedPath = Uri.encode(videoPath)
+    this.navigate("video_playback/$encodedPath") {
         launchSingleTop = true
     }
 }
