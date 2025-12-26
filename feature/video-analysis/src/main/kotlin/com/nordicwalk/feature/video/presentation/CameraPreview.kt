@@ -4,6 +4,10 @@ import android.view.ViewGroup
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.video.Quality
+import androidx.camera.video.QualitySelector
+import androidx.camera.video.Recorder
+import androidx.camera.video.VideoCapture
 import androidx.camera.view.PreviewView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -13,15 +17,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
 import java.util.concurrent.Executor
 
 /**
- * CameraX 預覽組件
+ * CameraX 預覽組件（同時支援預覽和錄影）
  */
 @Composable
 fun CameraPreview(
     modifier: Modifier = Modifier,
-    cameraSelector: CameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+    cameraSelector: CameraSelector = CameraSelector.DEFAULT_BACK_CAMERA,
+    onVideoCaptureReady: (VideoCapture<Recorder>) -> Unit = {}
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -51,15 +57,32 @@ fun CameraPreview(
                         it.setSurfaceProvider(previewView.surfaceProvider)
                     }
                 
-                // 解除之前的綻定
+                // 設定錄影
+                val recorder = Recorder.Builder()
+                    .setQualitySelector(
+                        QualitySelector.from(
+                            Quality.HD,
+                            androidx.camera.video.FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)
+                        )
+                    )
+                    .build()
+                
+                val videoCapture = VideoCapture.withOutput(recorder)
+                
+                // 解除之前的綁定
                 cameraProvider.unbindAll()
                 
-                // 綻定生命週期
+                // 綁定預覽和錄影到生命週期
                 cameraProvider.bindToLifecycle(
                     lifecycleOwner,
                     cameraSelector,
-                    preview
+                    preview,
+                    videoCapture
                 )
+                
+                // 回調 VideoCapture 實例
+                onVideoCaptureReady(videoCapture)
+                
             } catch (e: Exception) {
                 e.printStackTrace()
             }
