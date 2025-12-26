@@ -1,76 +1,138 @@
 package com.nordicwalk.feature.video.util
 
 import android.content.Context
-import android.media.MediaRecorder
-import android.os.Build
 import android.util.Log
+import androidx.camera.core.CameraSelector
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.video.*
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.concurrent.Executor
 
 /**
- * 視频錄製器
+ * 使用 CameraX VideoCapture 的視頻錄製器
  */
 class VideoRecorder(private val context: Context) {
-    private var mediaRecorder: MediaRecorder? = null
+    private var recording: Recording? = null
+    private var videoCapture: VideoCapture<Recorder>? = null
     private var isRecording = false
     private var currentVideoFile: File? = null
     private var recordingCallback: RecordingCallback? = null
+    private var cameraProvider: ProcessCameraProvider? = null
 
     companion object {
         private const val TAG = "VideoRecorder"
-        private const val VIDEO_BITRATE = 5000000 // 5 Mbps
-        private const val AUDIO_BITRATE = 128000 // 128 kbps
-        private const val VIDEO_FRAME_RATE = 30
-        private const val VIDEO_WIDTH = 1280
-        private const val VIDEO_HEIGHT = 720
     }
 
     /**
-     * 開始錄製視频
+     * 初始化 VideoCapture
+     */
+    fun initializeVideoCapture(
+        lifecycleOwner: LifecycleOwner,
+        cameraSelector: CameraSelector = CameraSelector.DEFAULT_BACK_CAMERA,
+        onInitialized: () -> Unit = {}
+    ) {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+        val executor: Executor = ContextCompat.getMainExecutor(context)
+
+        cameraProviderFuture.addListener({
+            try {
+                cameraProvider = cameraProviderFuture.get()
+
+                // 配置 Recorder
+                val recorder = Recorder.Builder()
+                    .setQualitySelector(
+                        QualitySelector.from(
+                            Quality.HD,
+                            FallbackStrategy.lowerQualityOrHigherThan(Quality.SD)
+                        )
+                    )
+                    .build()
+
+                videoCapture = VideoCapture.withOutput(recorder)
+
+                // 綁定到生命週期
+                cameraProvider?.unbindAll()
+                cameraProvider?.bindToLifecycle(
+                    lifecycleOwner,
+                    cameraSelector,
+                    videoCapture
+                )
+
+                Log.d(TAG, "VideoCapture 初始化成功")
+                onInitialized()
+            } catch (e: Exception) {
+                Log.e(TAG, "VideoCapture 初始化失敗", e)
+                recordingCallback?.onRecordingError("初始化失敗: ${e.message}")
+            }
+        }, executor)
+    }
+
+    /**
+     * 開始錄製視頻
      */
     fun startRecording(
-        cameraId: Int = 0,
         callback: RecordingCallback? = null
     ): Boolean {
         return try {
+            if (videoCapture == null) {
+                callback?.onRecordingError("VideoCapture 未初始化")
+                return false
+            }
+
+            if (isRecording) {
+                callback?.onRecordingError("已在錄製中")
+                return false
+            }
+
             recordingCallback = callback
             currentVideoFile = createVideoFile()
-            
-            mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                MediaRecorder(context)
-            } else {
-                @Suppress("DEPRECATION")
-                MediaRecorder()
-            }
 
-            mediaRecorder?.apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setVideoSource(MediaRecorder.VideoSource.CAMERA)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setVideoEncoder(MediaRecorder.VideoEncoder.H264)
-                setAudioSamplingRate(44100)
-                setAudioEncodingBitRate(AUDIO_BITRATE)
-                setVideoEncodingBitRate(VIDEO_BITRATE)
-                setVideoFrameRate(VIDEO_FRAME_RATE)
-                setVideoSize(VIDEO_WIDTH, VIDEO_HEIGHT)
-                setOrientationHint(90)
-                setOutputFile(currentVideoFile?.absolutePath)
-                prepare()
-                start()
-            }
+            val fileOutputOptions = FileOutputOptions.Builder(currentVideoFile!!).build()
 
-            isRecording = true
-            callback?.onRecordingStarted(currentVideoFile?.absolutePath ?: "")
-            Log.d(TAG, "錄製開始: ${currentVideoFile?.name}")
+            recording = videoCapture!!.output
+                .prepareRecording(context, fileOutputOptions)
+                .withAudioEnabled()
+                .start(ContextCompat.getMainExecutor(context)) { videoRecordEvent ->
+                    when (videoRecordEvent) {
+                        is VideoRecordEvent.Start -> {
+                            isRecording = true
+                            callback?.onRecordingStarted(currentVideoFile?.absolutePath ?: "")
+                            Log.d(TAG, "錄製開始: ${currentVideoFile?.name}")
+                        }
+                        is VideoRecordEvent.Finalize -> {
+                            isRecording = false
+                            if (!videoRecordEvent.hasError()) {
+                                val videoPath = currentVideoFile?.absolutePath ?: ""
+                                Log.d(TAG, "錄製完成: $videoPath")
+                                callback?.onRecordingStopped(videoPath)
+                            } else {
+                                val error = "錄製錯誤: ${videoRecordEvent.error}"
+                                Log.e(TAG, error)
+                                callback?.onRecordingError(error)
+                            }
+                        }
+                        is VideoRecordEvent.Status -> {
+                            // 可以在這裡更新錄製狀態
+                            Log.d(TAG, "錄製中...")
+                        }
+                        is VideoRecordEvent.Pause -> {
+                            Log.d(TAG, "錄製暫停")
+                        }
+                        is VideoRecordEvent.Resume -> {
+                            Log.d(TAG, "錄製恢復")
+                        }
+                    }
+                }
+
             true
         } catch (e: Exception) {
             Log.e(TAG, "錄製失敗", e)
             recordingCallback?.onRecordingError("錄製失敗: ${e.message}")
-            mediaRecorder?.release()
-            mediaRecorder = null
             false
         }
     }
@@ -80,21 +142,16 @@ class VideoRecorder(private val context: Context) {
      */
     fun stopRecording(): String? {
         return try {
-            if (!isRecording || mediaRecorder == null) {
+            if (!isRecording || recording == null) {
                 Log.w(TAG, "未進行錄製")
                 return null
             }
 
-            mediaRecorder?.apply {
-                stop()
-                release()
-            }
-            mediaRecorder = null
-            isRecording = false
+            recording?.stop()
+            recording = null
 
             val videoPath = currentVideoFile?.absolutePath
-            Log.d(TAG, "錄製結束: $videoPath")
-            recordingCallback?.onRecordingStopped(videoPath ?: "")
+            Log.d(TAG, "錄製停止: $videoPath")
             videoPath
         } catch (e: Exception) {
             Log.e(TAG, "停止錄製失敗", e)
@@ -108,22 +165,13 @@ class VideoRecorder(private val context: Context) {
      */
     fun cancelRecording() {
         try {
-            if (isRecording) {
-                mediaRecorder?.apply {
-                    try {
-                        stop()
-                    } catch (e: Exception) {
-                        Log.w(TAG, "停止錄製時的錯誤", e)
-                    }
-                    release()
-                }
-            }
-            
+            recording?.stop()
+            recording = null
+            isRecording = false
+
             currentVideoFile?.delete()
             currentVideoFile = null
-            mediaRecorder = null
-            isRecording = false
-            
+
             recordingCallback?.onRecordingCancelled()
             Log.d(TAG, "錄製已取消")
         } catch (e: Exception) {
@@ -136,7 +184,7 @@ class VideoRecorder(private val context: Context) {
     fun getCurrentVideoFile(): File? = currentVideoFile
 
     private fun createVideoFile(): File {
-        val videosDir = File(context.cacheDir, "videos")
+        val videosDir = File(context.getExternalFilesDir(null), "videos")
         if (!videosDir.exists()) {
             videosDir.mkdirs()
         }
@@ -147,14 +195,20 @@ class VideoRecorder(private val context: Context) {
 
     fun clearAllVideos() {
         try {
-            val videosDir = File(context.cacheDir, "videos")
+            val videosDir = File(context.getExternalFilesDir(null), "videos")
             if (videosDir.exists()) {
                 videosDir.deleteRecursively()
             }
-            Log.d(TAG, "已清除所有視频")
+            Log.d(TAG, "已清除所有視頻")
         } catch (e: Exception) {
             Log.e(TAG, "清理檔案失敗", e)
         }
+    }
+
+    fun release() {
+        cameraProvider?.unbindAll()
+        cameraProvider = null
+        videoCapture = null
     }
 }
 
