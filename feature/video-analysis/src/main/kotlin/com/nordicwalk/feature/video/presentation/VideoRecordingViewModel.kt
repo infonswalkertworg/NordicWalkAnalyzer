@@ -1,6 +1,8 @@
 package com.nordicwalk.feature.video.presentation
 
 import android.content.Context
+import androidx.camera.core.CameraSelector
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nordicwalk.feature.video.util.RecordingCallback
@@ -34,10 +36,37 @@ class VideoRecordingViewModel @Inject constructor(
     private val _statusMessage = MutableStateFlow("")
     val statusMessage: StateFlow<String> = _statusMessage.asStateFlow()
     
+    private val _isInitialized = MutableStateFlow(false)
+    val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
+    
     private var recordingStartTime = 0L
+
+    /**
+     * 初始化 VideoCapture
+     */
+    fun initializeCamera(
+        lifecycleOwner: LifecycleOwner,
+        cameraSelector: CameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+    ) {
+        viewModelScope.launch {
+            videoRecorder.initializeVideoCapture(
+                lifecycleOwner = lifecycleOwner,
+                cameraSelector = cameraSelector,
+                onInitialized = {
+                    _isInitialized.value = true
+                    _statusMessage.value = "相機就緒"
+                }
+            )
+        }
+    }
 
     fun startRecording() {
         viewModelScope.launch {
+            if (!_isInitialized.value) {
+                _errorMessage.value = "相機未初始化"
+                return@launch
+            }
+
             val success = videoRecorder.startRecording(
                 callback = object : RecordingCallback {
                     override fun onRecordingStarted(filePath: String) {
@@ -69,7 +98,7 @@ class VideoRecordingViewModel @Inject constructor(
             
             if (!success) {
                 _errorMessage.value = "錄製開始失敗"
-                _statusMessage.value = "錯誤: 錄製開始失敗"
+                _statusMessage.value = "錯誤: 錄裭開始失敗"
             }
         }
     }
@@ -79,10 +108,10 @@ class VideoRecordingViewModel @Inject constructor(
             val videoPath = videoRecorder.stopRecording()
             if (videoPath != null) {
                 _recordedVideoPath.value = videoPath
-                _statusMessage.value = "錄製已保存: $videoPath"
+                _statusMessage.value = "錄裭已保存: $videoPath"
             } else {
-                _errorMessage.value = "停止錄製失敗"
-                _statusMessage.value = "錯誤: 停止錄製失敗"
+                _errorMessage.value = "停止錄裭失敗"
+                _statusMessage.value = "錯誤: 停止錄裭失敗"
             }
         }
     }
@@ -114,5 +143,6 @@ class VideoRecordingViewModel @Inject constructor(
         if (_isRecording.value) {
             videoRecorder.cancelRecording()
         }
+        videoRecorder.release()
     }
 }
