@@ -51,6 +51,9 @@ class VideoAnalysisViewModel @Inject constructor(
     private val _statusMessage = MutableStateFlow("")
     val statusMessage: StateFlow<String> = _statusMessage.asStateFlow()
     
+    private val _isLoadingVideo = MutableStateFlow(false)
+    val isLoadingVideo: StateFlow<Boolean> = _isLoadingVideo.asStateFlow()
+    
     private var currentVideoPath = videoPath
 
     init {
@@ -64,22 +67,28 @@ class VideoAnalysisViewModel @Inject constructor(
     private fun validateAndLoadVideo(path: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                _isLoadingVideo.value = true
+                _statusMessage.value = "影片載入中..."
+                
                 val file = File(path)
                 if (!file.exists()) {
                     _errorMessage.value = "視頻檔案不存在: ${file.name}"
                     _statusMessage.value = "錯誤: 檔案不存在"
+                    _isLoadingVideo.value = false
                     return@launch
                 }
                 
                 if (file.length() == 0L) {
                     _errorMessage.value = "視頻檔案為空"
                     _statusMessage.value = "錯誤: 檔案為空"
+                    _isLoadingVideo.value = false
                     return@launch
                 }
                 
                 loadVideoInfo()
             } catch (e: Exception) {
                 _errorMessage.value = "檢查檔案失敗: ${e.message}"
+                _isLoadingVideo.value = false
                 e.printStackTrace()
             }
         }
@@ -95,10 +104,9 @@ class VideoAnalysisViewModel @Inject constructor(
             try {
                 if (currentVideoPath == null) {
                     _errorMessage.value = "視頻路徑為空"
+                    _isLoadingVideo.value = false
                     return@launch
                 }
-                
-                _statusMessage.value = "正在載入視頻..."
                 
                 val retriever = MediaMetadataRetriever()
                 retriever.setDataSource(currentVideoPath)
@@ -117,16 +125,22 @@ class VideoAnalysisViewModel @Inject constructor(
                 
                 retriever.release()
                 
+                _isLoadingVideo.value = false
+                
                 if (_videoDuration.value > 0L) {
-                    _statusMessage.value = "已載入視頻 (${_videoDuration.value / 1000}s, ${widthStr}x${heightStr})"
+                    _statusMessage.value = "已載入視頻，可直接點擊下方按鈕開始分析"
                     _errorMessage.value = null // 清除錯誤
                 } else {
-                    _errorMessage.value = "無法讀取視頻時長"
+                    // 時長為 0 不算錯誤，可能檔案剛寫入完成
+                    _statusMessage.value = "影片載入中，可直接點擊下方按鈕開始分析"
+                    _errorMessage.value = null  // 不顯示錯誤
                 }
                 
             } catch (e: Exception) {
-                _errorMessage.value = "載入視頻失敗: ${e.message}"
-                _statusMessage.value = "錯誤: ${e.message}"
+                _isLoadingVideo.value = false
+                // 載入失敗也不顯示錯誤，允許用戶嘗試分析
+                _statusMessage.value = "影片載入中，可直接點擊下方按鈕開始分析"
+                _errorMessage.value = null
                 e.printStackTrace()
             }
         }
@@ -159,6 +173,11 @@ class VideoAnalysisViewModel @Inject constructor(
                 val duration = retriever.extractMetadata(
                     MediaMetadataRetriever.METADATA_KEY_DURATION
                 )?.toLongOrNull() ?: 0L
+                
+                // 更新時長（如果之前載入失敗）
+                if (_videoDuration.value == 0L && duration > 0L) {
+                    _videoDuration.value = duration
+                }
                 
                 if (duration == 0L) {
                     _isAnalyzing.value = false
