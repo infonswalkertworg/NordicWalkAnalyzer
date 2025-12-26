@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 @HiltViewModel
@@ -54,15 +55,39 @@ class VideoAnalysisViewModel @Inject constructor(
 
     init {
         if (!currentVideoPath.isNullOrEmpty()) {
-            loadVideoInfo()
+            validateAndLoadVideo(currentVideoPath!!)
         } else {
             _errorMessage.value = "未找到視頻路徑"
         }
     }
 
+    private fun validateAndLoadVideo(path: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val file = File(path)
+                if (!file.exists()) {
+                    _errorMessage.value = "視頻檔案不存在: ${file.name}"
+                    _statusMessage.value = "錯誤: 檔案不存在"
+                    return@launch
+                }
+                
+                if (file.length() == 0L) {
+                    _errorMessage.value = "視頻檔案為空"
+                    _statusMessage.value = "錯誤: 檔案為空"
+                    return@launch
+                }
+                
+                loadVideoInfo()
+            } catch (e: Exception) {
+                _errorMessage.value = "檢查檔案失敗: ${e.message}"
+                e.printStackTrace()
+            }
+        }
+    }
+
     fun loadVideo(path: String) {
         currentVideoPath = path
-        loadVideoInfo()
+        validateAndLoadVideo(path)
     }
 
     private fun loadVideoInfo() {
@@ -73,7 +98,7 @@ class VideoAnalysisViewModel @Inject constructor(
                     return@launch
                 }
                 
-                _statusMessage.value = "正在載入視頻: $currentVideoPath"
+                _statusMessage.value = "正在載入視頻..."
                 
                 val retriever = MediaMetadataRetriever()
                 retriever.setDataSource(currentVideoPath)
@@ -83,8 +108,21 @@ class VideoAnalysisViewModel @Inject constructor(
                 )
                 _videoDuration.value = durationStr?.toLongOrNull() ?: 0L
                 
+                val widthStr = retriever.extractMetadata(
+                    MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH
+                )
+                val heightStr = retriever.extractMetadata(
+                    MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT
+                )
+                
                 retriever.release()
-                _statusMessage.value = "已載入視頻：時間 ${_videoDuration.value / 1000}s"
+                
+                if (_videoDuration.value > 0L) {
+                    _statusMessage.value = "已載入視頻 (${_videoDuration.value / 1000}s, ${widthStr}x${heightStr})"
+                    _errorMessage.value = null // 清除錯誤
+                } else {
+                    _errorMessage.value = "無法讀取視頻時長"
+                }
                 
             } catch (e: Exception) {
                 _errorMessage.value = "載入視頻失敗: ${e.message}"
@@ -101,11 +139,19 @@ class VideoAnalysisViewModel @Inject constructor(
                 return@launch
             }
             
+            // 再次檢查檔案是否存在
+            val file = File(currentVideoPath!!)
+            if (!file.exists()) {
+                _errorMessage.value = "分析失敗: ${file.name} 不存在"
+                return@launch
+            }
+            
             try {
                 _isAnalyzing.value = true
                 _statusMessage.value = "分析中..."
                 _analysisResults.value = emptyList()
                 _errorMessage.value = null
+                _analysisProgress.value = 0f
                 
                 val retriever = MediaMetadataRetriever()
                 retriever.setDataSource(currentVideoPath)
@@ -113,6 +159,13 @@ class VideoAnalysisViewModel @Inject constructor(
                 val duration = retriever.extractMetadata(
                     MediaMetadataRetriever.METADATA_KEY_DURATION
                 )?.toLongOrNull() ?: 0L
+                
+                if (duration == 0L) {
+                    _isAnalyzing.value = false
+                    _errorMessage.value = "無法讀取視頻時長"
+                    retriever.release()
+                    return@launch
+                }
                 
                 val frameInterval = 1000000L / framesPerSecond
                 val results = mutableListOf<PoseAnalysisResult>()
