@@ -30,11 +30,8 @@ fun NavGraphBuilder.videoAnalysisGraph(
                 // URL 編碼路徑以避免 / 字符問題
                 val encodedPath = Uri.encode(videoPath)
                 // 錄製完成後，導航到分析畫面
-                navController.navigate("video_analysis/$encodedPath") {
-                    popUpTo(VideoAnalysisDestinations.RECORDING_ROUTE) {
-                        inclusive = true
-                    }
-                }
+                // 保留 RECORDING_ROUTE 在堆疊中，以便從分析畫面返回時可以再次錄影
+                navController.navigate("video_analysis/$encodedPath")
             }
         )
     }
@@ -56,6 +53,7 @@ fun NavGraphBuilder.videoAnalysisGraph(
         VideoAnalysisScreen(
             videoPath = videoPath,
             onBack = {
+                // 返回到錄影畫面，移除當前分析畫面
                 navController.popBackStack()
             }
         )
