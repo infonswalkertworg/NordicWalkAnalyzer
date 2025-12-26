@@ -1,12 +1,12 @@
 package com.nordicwalk.feature.video.presentation
 
 import android.content.Context
-import androidx.camera.core.CameraSelector
-import androidx.lifecycle.LifecycleOwner
+import androidx.camera.video.Recorder
+import androidx.camera.video.VideoCapture
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nordicwalk.feature.video.util.RecordingCallback
-import com.nordicwalk.feature.video.util.VideoRecorder
+import com.nordicwalk.feature.video.util.VideoRecorderHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +19,8 @@ import javax.inject.Inject
 class VideoRecordingViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
-    private val videoRecorder = VideoRecorder(context)
+    private val recorderHelper = VideoRecorderHelper(context)
+    private var videoCapture: VideoCapture<Recorder>? = null
     
     private val _isRecording = MutableStateFlow(false)
     val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
@@ -36,42 +37,33 @@ class VideoRecordingViewModel @Inject constructor(
     private val _statusMessage = MutableStateFlow("")
     val statusMessage: StateFlow<String> = _statusMessage.asStateFlow()
     
-    private val _isInitialized = MutableStateFlow(false)
-    val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
+    private val _isCameraReady = MutableStateFlow(false)
+    val isCameraReady: StateFlow<Boolean> = _isCameraReady.asStateFlow()
     
     private var recordingStartTime = 0L
 
     /**
-     * 初始化 VideoCapture
+     * 設定 VideoCapture
      */
-    fun initializeCamera(
-        lifecycleOwner: LifecycleOwner,
-        cameraSelector: CameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
-    ) {
-        viewModelScope.launch {
-            videoRecorder.initializeVideoCapture(
-                lifecycleOwner = lifecycleOwner,
-                cameraSelector = cameraSelector,
-                onInitialized = {
-                    _isInitialized.value = true
-                    _statusMessage.value = "相機就緒"
-                }
-            )
-        }
+    fun setVideoCapture(capture: VideoCapture<Recorder>) {
+        videoCapture = capture
+        _isCameraReady.value = true
+        _statusMessage.value = "相機就緒"
     }
 
     fun startRecording() {
         viewModelScope.launch {
-            if (!_isInitialized.value) {
-                _errorMessage.value = "相機未初始化"
+            if (videoCapture == null) {
+                _errorMessage.value = "相機未就緒"
                 return@launch
             }
 
-            val success = videoRecorder.startRecording(
+            val success = recorderHelper.startRecording(
+                videoCapture = videoCapture!!,
                 callback = object : RecordingCallback {
                     override fun onRecordingStarted(filePath: String) {
                         _isRecording.value = true
-                        _statusMessage.value = "錄製中..."
+                        _statusMessage.value = "錄影中..."
                         recordingStartTime = System.currentTimeMillis()
                         _recordingDuration.value = 0L
                     }
@@ -79,12 +71,12 @@ class VideoRecordingViewModel @Inject constructor(
                     override fun onRecordingStopped(filePath: String) {
                         _isRecording.value = false
                         _recordedVideoPath.value = filePath
-                        _statusMessage.value = "錄製完成"
+                        _statusMessage.value = "錄影完成"
                     }
 
                     override fun onRecordingCancelled() {
                         _isRecording.value = false
-                        _statusMessage.value = "錄製已取消"
+                        _statusMessage.value = "錄影已取消"
                         _recordingDuration.value = 0L
                     }
 
@@ -97,28 +89,28 @@ class VideoRecordingViewModel @Inject constructor(
             )
             
             if (!success) {
-                _errorMessage.value = "錄製開始失敗"
-                _statusMessage.value = "錯誤: 錄裭開始失敗"
+                _errorMessage.value = "錄影開始失敗"
+                _statusMessage.value = "錯誤: 錄影開始失敗"
             }
         }
     }
 
     fun stopRecording() {
         viewModelScope.launch {
-            val videoPath = videoRecorder.stopRecording()
+            val videoPath = recorderHelper.stopRecording()
             if (videoPath != null) {
                 _recordedVideoPath.value = videoPath
-                _statusMessage.value = "錄裭已保存: $videoPath"
+                _statusMessage.value = "錄影已保存: $videoPath"
             } else {
-                _errorMessage.value = "停止錄裭失敗"
-                _statusMessage.value = "錯誤: 停止錄裭失敗"
+                _errorMessage.value = "停止錄影失敗"
+                _statusMessage.value = "錯誤: 停止錄影失敗"
             }
         }
     }
 
     fun cancelRecording() {
         viewModelScope.launch {
-            videoRecorder.cancelRecording()
+            recorderHelper.cancelRecording()
             _recordedVideoPath.value = null
             _recordingDuration.value = 0L
         }
@@ -141,8 +133,7 @@ class VideoRecordingViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         if (_isRecording.value) {
-            videoRecorder.cancelRecording()
+            recorderHelper.cancelRecording()
         }
-        videoRecorder.release()
     }
 }
