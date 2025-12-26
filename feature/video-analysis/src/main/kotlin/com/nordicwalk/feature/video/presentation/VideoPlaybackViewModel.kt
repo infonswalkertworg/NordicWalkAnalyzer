@@ -4,8 +4,10 @@ import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
+import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nordicwalk.feature.video.util.PoseAnalyzerUtil
@@ -16,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -33,6 +36,7 @@ data class PosePoint(
 class VideoPlaybackViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+    private val TAG = "VideoPlaybackViewModel"
     private val poseAnalyzer = PoseAnalyzerUtil(context)
     private var retriever: MediaMetadataRetriever? = null
     private var videoPath: String? = null
@@ -61,55 +65,118 @@ class VideoPlaybackViewModel @Inject constructor(
     fun loadVideo(path: String) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                Log.d(TAG, "Loading video from path: $path")
                 videoPath = path
-                val file = File(path)
-                if (!file.exists()) {
-                    _statusMessage.value = "檔案不存在"
+                
+                // 清理舊的 retriever
+                retriever?.release()
+                retriever = MediaMetadataRetriever()
+                
+                // 嘗試設置數據源
+                try {
+                    // 如果是 content:// URI
+                    if (path.startsWith("content://")) {
+                        retriever?.setDataSource(context, Uri.parse(path))
+                    } else {
+                        // 如果是文件路徑
+                        val file = File(path)
+                        if (!file.exists()) {
+                            withContext(Dispatchers.Main) {
+                                _statusMessage.value = "檔案不存在: $path"
+                            }
+                            Log.e(TAG, "File does not exist: $path")
+                            return@launch
+                        }
+                        retriever?.setDataSource(path)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error setting data source", e)
+                    withContext(Dispatchers.Main) {
+                        _statusMessage.value = "無法載入視頻: ${e.message}"
+                    }
                     return@launch
                 }
                 
-                retriever = MediaMetadataRetriever()
-                retriever?.setDataSource(path)
-                
+                // 獲取視頻時長和幀數
                 val durationStr = retriever?.extractMetadata(
                     MediaMetadataRetriever.METADATA_KEY_DURATION
                 )
                 val duration = durationStr?.toLongOrNull() ?: 0L
+                Log.d(TAG, "Video duration: $duration ms")
+                
+                if (duration <= 0) {
+                    withContext(Dispatchers.Main) {
+                        _statusMessage.value = "無效的視頻文件"
+                    }
+                    return@launch
+                }
+                
                 val frameRate = 30  // 預設 30fps
-                _totalFrames.value = ((duration / 1000) * frameRate).toInt()
+                val frames = ((duration / 1000.0) * frameRate).toInt()
+                
+                withContext(Dispatchers.Main) {
+                    _totalFrames.value = frames
+                    _currentFrame.value = 0
+                    Log.d(TAG, "Total frames: $frames")
+                }
                 
                 // 載入第一幀
                 loadFrame(0)
+                
+                withContext(Dispatchers.Main) {
+                    _statusMessage.value = "視頻已載入"
+                }
             } catch (e: Exception) {
-                _statusMessage.value = "載入失敗: ${e.message}"
+                Log.e(TAG, "Error loading video", e)
+                withContext(Dispatchers.Main) {
+                    _statusMessage.value = "載入失敗: ${e.message}"
+                }
                 e.printStackTrace()
             }
         }
     }
 
     private fun loadFrame(frameIndex: Int) {
-        viewModelScope.launch(Dispatchers.Default) {
+        viewModelScope.launch(Dispatchers.IO) {
             try {
-                if (retriever == null) return@launch
+                if (retriever == null) {
+                    Log.e(TAG, "Retriever is null")
+                    return@launch
+                }
                 
-                val timeUs = (frameIndex * 1000000L / 30).coerceAtMost(
-                    ((_totalFrames.value - 1) * 1000000L / 30).toLong()
-                )
+                val timeUs = (frameIndex * 1000000L / 30)
+                Log.d(TAG, "Loading frame $frameIndex at time $timeUs us")
                 
                 val bitmap = retriever?.getFrameAtTime(
                     timeUs,
-                    MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+                    MediaMetadataRetriever.OPTION_CLOSEST
                 )
                 
                 if (bitmap != null) {
-                    _frameBitmap.value = bitmap
-                    _currentFrame.value = frameIndex
+                    Log.d(TAG, "Frame loaded successfully: ${bitmap.width}x${bitmap.height}")
                     
-                    // 提取姿態信息
-                    val posePoints = poseAnalyzer.extractPosePoints(bitmap)
-                    _posePoints.value = posePoints
+                    withContext(Dispatchers.Main) {
+                        // 回收舊的 bitmap
+                        _frameBitmap.value?.recycle()
+                        _frameBitmap.value = bitmap
+                        _currentFrame.value = frameIndex
+                    }
+                    
+                    // 提取姿態信息（在背景執行）
+                    try {
+                        val posePoints = poseAnalyzer.extractPosePoints(bitmap)
+                        withContext(Dispatchers.Main) {
+                            _posePoints.value = posePoints
+                        }
+                        Log.d(TAG, "Extracted ${posePoints.size} pose points")
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error extracting pose points", e)
+                    }
+                } else {
+                    Log.e(TAG, "Failed to extract frame at index $frameIndex")
                 }
             } catch (e: Exception) {
+                Log.e(TAG, "Error loading frame", e)
                 e.printStackTrace()
             }
         }
@@ -169,10 +236,14 @@ class VideoPlaybackViewModel @Inject constructor(
                     context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                         bitmap.compress(Bitmap.CompressFormat.JPEG, 95, outputStream)
                     }
-                    _statusMessage.value = "截圖已保存: $filename"
+                    withContext(Dispatchers.Main) {
+                        _statusMessage.value = "截圖已保存: $filename"
+                    }
                 }
             } catch (e: Exception) {
-                _statusMessage.value = "截圖失敗: ${e.message}"
+                withContext(Dispatchers.Main) {
+                    _statusMessage.value = "截圖失敗: ${e.message}"
+                }
                 e.printStackTrace()
             }
         }
