@@ -51,22 +51,22 @@ fun NavGraphBuilder.videoAnalysisGraph(
         )
     ) { backStackEntry ->
         val encodedPath = backStackEntry.arguments?.getString("encodedVideoPath")
-        val videoPath = encodedPath?.let { Uri.decode(it) }
-        
+        val videoPath = encodedPath?.let { Uri.decode(it) } ?: ""
+
         VideoPlaybackScreen(
-            videoPath = videoPath,
+            videoPath = videoPath,  // ✅ 正確的參數名稱
             onBack = {
                 // 返回到錄影畫面
                 navController.popBackStack()
             },
-            onAnalysisStart = {
-                videoPath?.let {
-                    val encodedPath = Uri.encode(it)
-                    navController.navigate("video_analysis/$encodedPath") {
-                        launchSingleTop = true
-                    }
+            onCapture = {
+                // 進入分析畫面
+                val encodedPath = Uri.encode(videoPath)
+                navController.navigate("video_analysis/$encodedPath") {
+                    launchSingleTop = true
                 }
             }
+
         )
     }
 
@@ -82,8 +82,8 @@ fun NavGraphBuilder.videoAnalysisGraph(
     ) { backStackEntry ->
         val encodedPath = backStackEntry.arguments?.getString("encodedVideoPath")
         // URL 解碼路徑
-        val videoPath = encodedPath?.let { Uri.decode(it) }
-        
+        val videoPath = encodedPath?.let { Uri.decode(it) } ?: ""
+
         VideoAnalysisScreen(
             videoPath = videoPath,
             onBack = {
